@@ -3,12 +3,21 @@ let allTasks = [];
 let filteredTasks = [];
 let sortColumn = 'due_date';
 let sortDirection = 'asc';
+let editingTaskId = null;
+let taskImages = [];
 
 // Elementos del DOM
 const tasksTableBody = document.getElementById('tasksTableBody');
 const filterProject = document.getElementById('filterProject');
 const searchTasks = document.getElementById('searchTasks');
 const sortableHeaders = document.querySelectorAll('.sortable');
+
+// Modal de edición
+const taskModal = document.getElementById('taskModal');
+const taskForm = document.getElementById('taskForm');
+const addImageBtn = document.getElementById('addImageBtn');
+const taskImagesInput = document.getElementById('taskImages');
+const imagesPreview = document.getElementById('imagesPreview');
 
 // Elementos de estadísticas
 const totalTasksEl = document.getElementById('totalTasks');
@@ -17,9 +26,29 @@ const pendingTasksEl = document.getElementById('pendingTasks');
 const criticalTasksEl = document.getElementById('criticalTasks');
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', function() {
+  initTags();
+  init();
+});
 filterProject.addEventListener('change', applyFilters);
 searchTasks.addEventListener('input', applyFilters);
+
+// Event listeners del modal
+if (taskForm) taskForm.addEventListener('submit', handleTaskSubmit);
+if (addImageBtn) addImageBtn.addEventListener('click', () => taskImagesInput.click());
+if (taskImagesInput) taskImagesInput.addEventListener('change', handleImageSelect);
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', function() {
+    this.closest('.modal').classList.remove('active');
+  });
+});
+
+if (taskModal) {
+  taskModal.addEventListener('click', (e) => {
+    if (e.target === taskModal) taskModal.classList.remove('active');
+  });
+}
 
 sortableHeaders.forEach(header => {
   header.addEventListener('click', () => {
@@ -154,7 +183,8 @@ function renderTasks() {
           <button class="btn btn-sm btn-secondary" onclick="toggleTask(${task.id})">
             ${task.completed ? '↺' : '✓'}
           </button>
-          <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})">👁️</button>
+          <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">✏️</button>
+          <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">👁️</button>
         </div>
       </td>
     </tr>
@@ -196,4 +226,106 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Inicializar tags dinámicamente
+function initTags() {
+  const tagsContainer = document.getElementById('tagsSelector');
+  if (tagsContainer && typeof AVAILABLE_TAGS !== 'undefined') {
+    tagsContainer.innerHTML = AVAILABLE_TAGS.map(tag => `
+      <label class="tag-checkbox">
+        <input type="checkbox" name="taskTag" value="${tag}">
+        <span class="tag-label">${tag}</span>
+      </label>
+    `).join('');
+  }
+}
+
+// Editar tarea
+async function editTask(id) {
+  const task = allTasks.find(t => t.id === id);
+  if (!task) return;
+
+  editingTaskId = id;
+  taskImages = task.images ? JSON.parse(task.images) : [];
+  const taskTags = task.tags ? JSON.parse(task.tags) : [];
+  
+  document.getElementById('taskModalTitle').textContent = 'Editar Tarea';
+  document.getElementById('taskId').value = task.id;
+  document.getElementById('taskProjectId').value = task.project_id;
+  document.getElementById('taskTitle').value = task.title;
+  document.getElementById('taskDescription').value = task.description || '';
+  document.getElementById('taskDueDate').value = task.due_date || '';
+  document.getElementById('taskCriticality').value = task.criticality || 'medium';
+  
+  // Marcar los tags que tiene la tarea
+  document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
+    cb.checked = taskTags.includes(cb.value);
+  });
+  
+  renderImagePreviews();
+  taskModal.classList.add('active');
+}
+
+// Guardar cambios de tarea
+async function handleTaskSubmit(e) {
+  e.preventDefault();
+
+  // Obtener tags seleccionados
+  const selectedTags = Array.from(document.querySelectorAll('input[name="taskTag"]:checked'))
+    .map(cb => cb.value);
+
+  const taskData = {
+    project_id: document.getElementById('taskProjectId').value,
+    title: document.getElementById('taskTitle').value,
+    description: document.getElementById('taskDescription').value,
+    due_date: document.getElementById('taskDueDate').value || null,
+    criticality: document.getElementById('taskCriticality').value,
+    tags: selectedTags,
+    images: taskImages
+  };
+
+  try {
+    await window.api.updateTask(editingTaskId, taskData);
+    taskModal.classList.remove('active');
+    await loadTasks();
+  } catch (error) {
+    console.error('Error al guardar tarea:', error);
+    alert('Error al guardar la tarea');
+  }
+}
+
+// Manejar selección de imágenes
+function handleImageSelect(e) {
+  const files = Array.from(e.target.files);
+  
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      taskImages.push(event.target.result);
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  
+  // Reset input
+  e.target.value = '';
+}
+
+// Renderizar previsualizaciones de imágenes
+function renderImagePreviews() {
+  if (!imagesPreview) return;
+  
+  imagesPreview.innerHTML = taskImages.map((img, index) => `
+    <div class="image-preview-item">
+      <img src="${img}" alt="Preview">
+      <button type="button" class="image-preview-remove" onclick="removeImage(${index})">&times;</button>
+    </div>
+  `).join('');
+}
+
+// Eliminar imagen
+function removeImage(index) {
+  taskImages.splice(index, 1);
+  renderImagePreviews();
 }

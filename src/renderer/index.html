@@ -65,6 +65,71 @@
     </main>
   </div>
 
+  <!-- Modal para editar tarea -->
+  <div id="taskModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">Editar Tarea</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="taskForm">
+          <input type="hidden" id="taskId">
+          <input type="hidden" id="taskProjectId">
+          
+          <div class="form-group">
+            <label for="taskTitle">Título</label>
+            <input type="text" id="taskTitle" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="taskDescription">Descripción</label>
+            <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskDueDate">Fecha de Ejecución</label>
+              <input type="date" id="taskDueDate" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="taskCriticality">Criticidad</label>
+              <select id="taskCriticality" class="form-control">
+                <option value="low">Baja</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Tags</label>
+            <div class="tags-selector" id="tagsSelector">
+              <!-- Los tags se cargarán dinámicamente -->
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Imágenes</label>
+            <div class="image-upload-area" id="imageUploadArea">
+              <input type="file" id="taskImages" accept="image/*" multiple style="display: none;">
+              <button type="button" class="btn btn-secondary" id="addImageBtn">+ Añadir Imágenes</button>
+              <div class="images-preview" id="imagesPreview"></div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary modal-close">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
   <script src="js/sidebar.js"></script>
   <script src="js/dashboard.js"></script>
 </body>
