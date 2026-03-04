@@ -112,15 +112,15 @@ function renderTasks() {
   tasksList.innerHTML = tasks.map(task => {
     const images = task.images ? JSON.parse(task.images) : [];
     const tags = task.tags ? JSON.parse(task.tags) : [];
+    const status = task.status || 'pending';
     
     return `
-      <div class="task-item ${task.completed ? 'completed' : ''}">
-        <input 
-          type="checkbox" 
-          class="task-checkbox" 
-          ${task.completed ? 'checked' : ''}
-          onchange="toggleTask(${task.id})"
-        >
+      <div class="task-item ${status === 'completed' ? 'completed' : ''}">
+        <div class="task-status">
+          <span class="badge ${getStatusBadgeClass(status)}">
+            ${getStatusText(status)}
+          </span>
+        </div>
         <div class="task-content">
           <div class="task-title">${escapeHtml(task.title)}</div>
           ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
@@ -148,12 +148,70 @@ function renderTasks() {
         </div>
         
         <div class="task-actions">
+          <div class="status-buttons">
+            ${getStatusButtons(task.id, status)}
+          </div>
           <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})">✏️</button>
           <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})">🗑️</button>
         </div>
       </div>
     `;
   }).join('');
+}
+
+function getStatusBadgeClass(status) {
+  const classes = {
+    'pending': 'badge-pending',
+    'in_progress': 'badge-info',
+    'testing': 'badge-warning',
+    'completed': 'badge-completed'
+  };
+  return classes[status] || 'badge-pending';
+}
+
+function getStatusText(status) {
+  const texts = {
+    'pending': '○ Pendiente',
+    'in_progress': '▶ En Curso',
+    'testing': '🛠 Testing',
+    'completed': '✓ Completada'
+  };
+  return texts[status] || '○ Pendiente';
+}
+
+function getStatusButtons(taskId, currentStatus) {
+  const statuses = ['pending', 'in_progress', 'testing', 'completed'];
+  const icons = {
+    'pending': '○',
+    'in_progress': '▶',
+    'testing': '🛠',
+    'completed': '✓'
+  };
+  const titles = {
+    'pending': 'Marcar como Pendiente',
+    'in_progress': 'Marcar En Curso',
+    'testing': 'Marcar en Testing',
+    'completed': 'Marcar Completada'
+  };
+  const btnClasses = {
+    'pending': 'btn-status-pending',
+    'in_progress': 'btn-status-in-progress',
+    'testing': 'btn-status-testing',
+    'completed': 'btn-status-completed'
+  };
+  
+  return statuses
+    .filter(status => status !== currentStatus)
+    .map(status => `
+      <button 
+        class="btn btn-sm ${btnClasses[status]}" 
+        onclick="updateTaskStatus(${taskId}, '${status}')" 
+        title="${titles[status]}"
+        style="min-width: 28px;"
+      >
+        ${icons[status]}
+      </button>
+    `).join('');
 }
 
 function openNewTaskModal() {
@@ -165,6 +223,7 @@ function openNewTaskModal() {
   document.getElementById('taskDescription').value = '';
   document.getElementById('taskDueDate').value = '';
   document.getElementById('taskCriticality').value = 'medium';
+  document.getElementById('taskStatus').value = 'pending';
   
   // Desmarcar todos los tags
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => cb.checked = false);
@@ -187,6 +246,7 @@ async function editTask(id) {
   document.getElementById('taskDescription').value = task.description || '';
   document.getElementById('taskDueDate').value = task.due_date || '';
   document.getElementById('taskCriticality').value = task.criticality || 'medium';
+  document.getElementById('taskStatus').value = task.status || 'pending';
   
   // Marcar los tags que tiene la tarea
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
@@ -210,6 +270,7 @@ async function handleTaskSubmit(e) {
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
     criticality: document.getElementById('taskCriticality').value,
+    status: document.getElementById('taskStatus').value,
     tags: selectedTags,
     images: taskImages
   };
@@ -226,6 +287,15 @@ async function handleTaskSubmit(e) {
   } catch (error) {
     console.error('Error al guardar tarea:', error);
     alert('Error al guardar la tarea');
+  }
+}
+
+async function updateTaskStatus(id, status) {
+  try {
+    await window.api.updateTaskStatus(id, status);
+    await loadTasks();
+  } catch (error) {
+    console.error('Error al cambiar estado:', error);
   }
 }
 

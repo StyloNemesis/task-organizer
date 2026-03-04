@@ -15,8 +15,25 @@
       <header class="content-header">
         <h2>Dashboard de Tareas</h2>
         <div class="header-actions">
-          <select id="filterProject" class="form-control">
+          <select id="filterMainProject" class="form-control">
             <option value="">Todos los proyectos</option>
+          </select>
+          <select id="filterSubProject" class="form-control">
+            <option value="">Todas las subcategorías</option>
+          </select>
+          <select id="filterStatus" class="form-control">
+            <option value="">Todos los estados</option>
+            <option value="pending">Pendiente</option>
+            <option value="in_progress">En Curso</option>
+            <option value="testing">Testing</option>
+            <option value="completed">Completada</option>
+          </select>
+          <select id="filterCriticality" class="form-control">
+            <option value="">Todas las criticidades</option>
+            <option value="low">Baja</option>
+            <option value="medium">Media</option>
+            <option value="high">Alta</option>
+            <option value="critical">Crítica</option>
           </select>
           <input type="search" id="searchTasks" placeholder="Buscar tareas..." class="search-input">
         </div>
@@ -50,7 +67,8 @@
               <tr>
                 <th class="sortable" data-column="completed">Estado</th>
                 <th class="sortable" data-column="title">Título</th>
-                <th class="sortable" data-column="project_name">Proyecto</th>
+                <th class="sortable" data-column="parent_project_name">Proyecto Principal</th>
+                <th class="sortable" data-column="project_name">Subcategoría</th>
                 <th class="sortable" data-column="criticality">Criticidad</th>
                 <th class="sortable" data-column="due_date">Fecha</th>
                 <th>Acciones</th>
@@ -102,6 +120,16 @@
                 <option value="critical">Crítica</option>
               </select>
             </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskStatus">Estado</label>
+            <select id="taskStatus" class="form-control">
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En Curso</option>
+              <option value="testing">Testing</option>
+              <option value="completed">Completada</option>
+            </select>
           </div>
 
           <div class="form-group">

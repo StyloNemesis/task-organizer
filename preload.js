@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   updateTask: (id, task) => ipcRenderer.invoke('update-task', id, task),
   deleteTask: (id) => ipcRenderer.invoke('delete-task', id),
   toggleTask: (id) => ipcRenderer.invoke('toggle-task', id),
+  updateTaskStatus: (id, status) => ipcRenderer.invoke('update-task-status', id, status),
   
   // Notas
   getNotes: (projectId) => ipcRenderer.invoke('get-notes', projectId),

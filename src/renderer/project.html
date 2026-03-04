@@ -92,6 +92,16 @@
           </div>
 
           <div class="form-group">
+            <label for="taskStatus">Estado</label>
+            <select id="taskStatus" class="form-control">
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En Curso</option>
+              <option value="testing">Testing</option>
+              <option value="completed">Completada</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label>Imágenes</label>
             <div class="image-upload-area" id="imageUploadArea">
               <input type="file" id="taskImages" accept="image/*" multiple style="display: none;">

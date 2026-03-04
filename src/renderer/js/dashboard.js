@@ -8,9 +8,15 @@ let taskImages = [];
 
 // Elementos del DOM
 const tasksTableBody = document.getElementById('tasksTableBody');
-const filterProject = document.getElementById('filterProject');
+const filterMainProject = document.getElementById('filterMainProject');
+const filterSubProject = document.getElementById('filterSubProject');
+const filterStatus = document.getElementById('filterStatus');
+const filterCriticality = document.getElementById('filterCriticality');
 const searchTasks = document.getElementById('searchTasks');
 const sortableHeaders = document.querySelectorAll('.sortable');
+
+// Variable para almacenar proyectos
+let allProjects = [];
 
 // Modal de edición
 const taskModal = document.getElementById('taskModal');
@@ -30,7 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
   initTags();
   init();
 });
-filterProject.addEventListener('change', applyFilters);
+filterMainProject.addEventListener('change', function() {
+  loadSubProjects();
+  applyFilters();
+});
+filterSubProject.addEventListener('change', applyFilters);
+filterStatus.addEventListener('change', applyFilters);
+filterCriticality.addEventListener('change', applyFilters);
 searchTasks.addEventListener('input', applyFilters);
 
 // Event listeners del modal
@@ -69,9 +81,39 @@ async function init() {
 }
 
 async function loadProjects() {
-  const projects = await window.api.getProjects();
-  filterProject.innerHTML = '<option value="">Todos los proyectos</option>' +
-    projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  allProjects = await window.api.getProjects();
+  
+  // Filtrar solo proyectos principales (sin parent_id)
+  const mainProjects = allProjects.filter(p => !p.parent_id);
+  
+  filterMainProject.innerHTML = '<option value="">Todos los proyectos</option>' +
+    mainProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  
+  // Inicializar filtro de subcategorías vacío
+  filterSubProject.innerHTML = '<option value="">Todas las subcategorías</option>';
+  filterSubProject.disabled = true;
+}
+
+function loadSubProjects() {
+  const mainProjectId = filterMainProject.value;
+  
+  if (!mainProjectId) {
+    filterSubProject.innerHTML = '<option value="">Todas las subcategorías</option>';
+    filterSubProject.disabled = true;
+    return;
+  }
+  
+  // Filtrar subcategorías del proyecto principal seleccionado
+  const subProjects = allProjects.filter(p => p.parent_id == mainProjectId);
+  
+  if (subProjects.length === 0) {
+    filterSubProject.innerHTML = '<option value="">Sin subcategorías</option>';
+    filterSubProject.disabled = true;
+  } else {
+    filterSubProject.innerHTML = '<option value="">Todas las subcategorías</option>' +
+      subProjects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+    filterSubProject.disabled = false;
+  }
 }
 
 async function loadTasks() {
@@ -83,9 +125,9 @@ async function loadTasks() {
 
 function updateStats() {
   const total = allTasks.length;
-  const completed = allTasks.filter(t => t.completed).length;
-  const pending = total - completed;
-  const critical = allTasks.filter(t => t.criticality === 'critical' && !t.completed).length;
+  const completed = allTasks.filter(t => t.status === 'completed').length;
+  const pending = allTasks.filter(t => t.status === 'pending').length;
+  const critical = allTasks.filter(t => t.criticality === 'critical' && t.status !== 'completed').length;
 
   totalTasksEl.textContent = total;
   completedTasksEl.textContent = completed;
@@ -94,16 +136,35 @@ function updateStats() {
 }
 
 function applyFilters() {
-  const projectFilter = filterProject.value;
+  const mainProjectId = filterMainProject.value;
+  const subProjectId = filterSubProject.value;
+  const statusFilter = filterStatus.value;
+  const criticalityFilter = filterCriticality.value;
   const searchTerm = searchTasks.value.toLowerCase();
 
   filteredTasks = allTasks.filter(task => {
-    const matchesProject = !projectFilter || task.project_id == projectFilter;
+    let matchesProject = true;
+    
+    // Si hay subcategoría seleccionada, solo mostrar esa
+    if (subProjectId) {
+      matchesProject = task.project_id == subProjectId;
+    } 
+    // Si solo hay proyecto principal, mostrar sus tareas y las de sus subcategorías
+    else if (mainProjectId) {
+      const subProjectIds = allProjects
+        .filter(p => p.parent_id == mainProjectId)
+        .map(p => p.id);
+      
+      matchesProject = task.project_id == mainProjectId || subProjectIds.includes(task.project_id);
+    }
+    
+    const matchesStatus = !statusFilter || (task.status || 'pending') === statusFilter;
+    const matchesCriticality = !criticalityFilter || task.criticality === criticalityFilter;
     const matchesSearch = !searchTerm || 
       task.title.toLowerCase().includes(searchTerm) ||
       (task.description && task.description.toLowerCase().includes(searchTerm));
     
-    return matchesProject && matchesSearch;
+    return matchesProject && matchesStatus && matchesCriticality && matchesSearch;
   });
 
   sortAndRenderTasks();
@@ -131,6 +192,13 @@ function sortAndRenderTasks() {
       bVal = criticalityOrder[bVal] || 0;
     }
 
+    // Para estado (status)
+    if (sortColumn === 'completed') {
+      const statusOrder = { pending: 1, in_progress: 2, testing: 3, completed: 4 };
+      aVal = statusOrder[a.status || 'pending'] || 0;
+      bVal = statusOrder[b.status || 'pending'] || 0;
+    }
+
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
     return 0;
@@ -143,7 +211,7 @@ function renderTasks() {
   if (filteredTasks.length === 0) {
     tasksTableBody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
           No hay tareas que mostrar
         </td>
       </tr>
@@ -157,14 +225,22 @@ function renderTasks() {
     return `
     <tr>
       <td>
-        <span class="badge ${task.completed ? 'badge-completed' : 'badge-pending'}">
-          ${task.completed ? '✓ Completada' : '○ Pendiente'}
+        <span class="badge ${getStatusBadgeClass(task.status || 'pending')}">
+          ${getStatusText(task.status || 'pending')}
         </span>
       </td>
       <td>
         <strong>${escapeHtml(task.title)}</strong>
         ${task.description ? `<br><small style="color: var(--text-secondary);">${escapeHtml(task.description.substring(0, 60))}${task.description.length > 60 ? '...' : ''}</small>` : ''}
         ${tags.length > 0 ? `<br><div style="display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap;">${tags.map(tag => `<span class="badge tag-badge">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+      </td>
+      <td>
+        ${task.parent_project_name ? `
+          <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${task.parent_project_color || '#3b82f6'};"></span>
+            ${escapeHtml(task.parent_project_name)}
+          </span>
+        ` : '-'}
       </td>
       <td>
         <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -179,10 +255,8 @@ function renderTasks() {
       </td>
       <td>${task.due_date ? formatDate(task.due_date) : '-'}</td>
       <td>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-sm btn-secondary" onclick="toggleTask(${task.id})">
-            ${task.completed ? '↺' : '✓'}
-          </button>
+        <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+          ${getStatusButtons(task.id, task.status || 'pending')}
           <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">✏️</button>
           <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">👁️</button>
         </div>
@@ -191,9 +265,63 @@ function renderTasks() {
   `}).join('');
 }
 
-async function toggleTask(id) {
+function getStatusBadgeClass(status) {
+  const classes = {
+    'pending': 'badge-pending',
+    'in_progress': 'badge-info',
+    'testing': 'badge-warning',
+    'completed': 'badge-completed'
+  };
+  return classes[status] || 'badge-pending';
+}
+
+function getStatusText(status) {
+  const texts = {
+    'pending': '○ Pendiente',
+    'in_progress': '▶ En Curso',
+    'testing': '🛠 Testing',
+    'completed': '✓ Completada'
+  };
+  return texts[status] || '○ Pendiente';
+}
+
+function getStatusButtons(taskId, currentStatus) {
+  const statuses = ['pending', 'in_progress', 'testing', 'completed'];
+  const icons = {
+    'pending': '○',
+    'in_progress': '▶',
+    'testing': '🛠',
+    'completed': '✓'
+  };
+  const titles = {
+    'pending': 'Marcar como Pendiente',
+    'in_progress': 'Marcar En Curso',
+    'testing': 'Marcar en Testing',
+    'completed': 'Marcar Completada'
+  };
+  const btnClasses = {
+    'pending': 'btn-status-pending',
+    'in_progress': 'btn-status-in-progress',
+    'testing': 'btn-status-testing',
+    'completed': 'btn-status-completed'
+  };
+  
+  return statuses
+    .filter(status => status !== currentStatus)
+    .map(status => `
+      <button 
+        class="btn btn-sm ${btnClasses[status]}" 
+        onclick="updateTaskStatus(${taskId}, '${status}')" 
+        title="${titles[status]}"
+      >
+        ${icons[status]}
+      </button>
+    `).join('');
+}
+
+async function updateTaskStatus(id, status) {
   try {
-    await window.api.toggleTask(id);
+    await window.api.updateTaskStatus(id, status);
     await loadTasks();
   } catch (error) {
     console.error('Error al cambiar estado de tarea:', error);
@@ -257,6 +385,7 @@ async function editTask(id) {
   document.getElementById('taskDescription').value = task.description || '';
   document.getElementById('taskDueDate').value = task.due_date || '';
   document.getElementById('taskCriticality').value = task.criticality || 'medium';
+  document.getElementById('taskStatus').value = task.status || 'pending';
   
   // Marcar los tags que tiene la tarea
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
@@ -281,6 +410,7 @@ async function handleTaskSubmit(e) {
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
     criticality: document.getElementById('taskCriticality').value,
+    status: document.getElementById('taskStatus').value,
     tags: selectedTags,
     images: taskImages
   };

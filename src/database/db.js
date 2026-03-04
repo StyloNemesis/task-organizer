@@ -34,6 +34,7 @@ class TaskDatabase {
         due_date DATE,
         criticality TEXT CHECK(criticality IN ('low', 'medium', 'high', 'critical')),
         completed BOOLEAN DEFAULT 0,
+        status TEXT CHECK(status IN ('pending', 'in_progress', 'testing', 'completed')) DEFAULT 'pending',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -43,6 +44,15 @@ class TaskDatabase {
     // Añadir columna tags si no existe (migración)
     try {
       this.db.exec(`ALTER TABLE tasks ADD COLUMN tags TEXT`);
+    } catch (e) {
+      // La columna ya existe
+    }
+
+    // Añadir columna status si no existe (migración)
+    try {
+      this.db.exec(`ALTER TABLE tasks ADD COLUMN status TEXT CHECK(status IN ('pending', 'in_progress', 'testing', 'completed')) DEFAULT 'pending'`);
+      // Migrar datos de completed a status
+      this.db.exec(`UPDATE tasks SET status = CASE WHEN completed = 1 THEN 'completed' ELSE 'pending' END WHERE status IS NULL`);
     } catch (e) {
       // La columna ya existe
     }
@@ -101,17 +111,23 @@ class TaskDatabase {
 
   getAllTasks() {
     return this.db.prepare(`
-      SELECT tasks.*, projects.name as project_name, projects.color as project_color
+      SELECT tasks.*, 
+             projects.name as project_name, 
+             projects.color as project_color,
+             projects.parent_id,
+             parent.name as parent_project_name,
+             parent.color as parent_project_color
       FROM tasks
       LEFT JOIN projects ON tasks.project_id = projects.id
+      LEFT JOIN projects as parent ON projects.parent_id = parent.id
       ORDER BY tasks.due_date, tasks.criticality
     `).all();
   }
 
   createTask(task) {
     const stmt = this.db.prepare(`
-      INSERT INTO tasks (project_id, title, description, images, tags, due_date, criticality)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO tasks (project_id, title, description, images, tags, due_date, criticality, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const images = task.images ? JSON.stringify(task.images) : null;
     const tags = task.tags ? JSON.stringify(task.tags) : null;
@@ -122,7 +138,8 @@ class TaskDatabase {
       images,
       tags,
       task.due_date || null,
-      task.criticality || 'medium'
+      task.criticality || 'medium',
+      task.status || 'pending'
     );
     return { id: result.lastInsertRowid, ...task };
   }
@@ -130,19 +147,31 @@ class TaskDatabase {
   updateTask(id, task) {
     const stmt = this.db.prepare(`
       UPDATE tasks
-      SET title = ?, description = ?, images = ?, tags = ?, due_date = ?, criticality = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, description = ?, images = ?, tags = ?, due_date = ?, criticality = ?, status = ?, completed = CASE WHEN ? = 'completed' THEN 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
     const images = task.images ? JSON.stringify(task.images) : null;
     const tags = task.tags ? JSON.stringify(task.tags) : null;
-    stmt.run(task.title, task.description, images, tags, task.due_date, task.criticality, id);
+    const status = task.status || 'pending';
+    stmt.run(task.title, task.description, images, tags, task.due_date, task.criticality, status, status, id);
     return { id, ...task };
+  }
+
+  updateTaskStatus(id, status) {
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?, completed = CASE WHEN ? = 'completed' THEN 1 ELSE 0 END, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    stmt.run(status, status, id);
+    const task = this.db.prepare('SELECT * FROM tasks WHERE id = ?').get(id);
+    return task;
   }
 
   toggleTask(id) {
     const stmt = this.db.prepare(`
       UPDATE tasks
-      SET completed = NOT completed, updated_at = CURRENT_TIMESTAMP
+      SET completed = NOT completed, status = CASE WHEN completed = 0 THEN 'completed' ELSE 'pending' END, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
     stmt.run(id);

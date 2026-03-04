@@ -98,6 +98,10 @@ ipcMain.handle('toggle-task', async (event, id) => {
   return db.toggleTask(id);
 });
 
+ipcMain.handle('update-task-status', async (event, id, status) => {
+  return db.updateTaskStatus(id, status);
+});
+
 // IPC Handlers para notas
 ipcMain.handle('get-notes', async (event, projectId) => {
   return db.getNotes(projectId);
