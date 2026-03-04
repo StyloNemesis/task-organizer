@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2>Dashboard de Tareas</h2>
+        <div class="header-actions">
+          <select id="filterProject" class="form-control">
+            <option value="">Todos los proyectos</option>
+          </select>
+          <input type="search" id="searchTasks" placeholder="Buscar tareas..." class="search-input">
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- Estadísticas rápidas -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="totalTasks">0</div>
+            <div class="stat-label">Total Tareas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="completedTasks">0</div>
+            <div class="stat-label">Completadas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="pendingTasks">0</div>
+            <div class="stat-label">Pendientes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="criticalTasks">0</div>
+            <div class="stat-label">Críticas</div>
+          </div>
+        </div>
+
+        <!-- Tabla de tareas -->
+        <div class="table-container">
+          <table class="tasks-table" id="tasksTable">
+            <thead>
+              <tr>
+                <th class="sortable" data-column="completed">Estado</th>
+                <th class="sortable" data-column="title">Título</th>
+                <th class="sortable" data-column="project_name">Proyecto</th>
+                <th class="sortable" data-column="criticality">Criticidad</th>
+                <th class="sortable" data-column="due_date">Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tasksTableBody">
+              <!-- Las tareas se cargarán dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

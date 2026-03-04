@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyecto - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <div>
+          <a href="projects.html" class="back-link">← Volver a proyectos</a>
+          <h2 id="projectTitle">Proyecto</h2>
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="tasks">Tareas</button>
+          <button class="tab-btn" data-tab="notes">Notas</button>
+        </div>
+
+        <!-- Tab de Tareas -->
+        <div class="tab-content active" id="tasksTab">
+          <div class="tab-header">
+            <h3>Lista de Tareas</h3>
+            <button class="btn btn-primary" id="newTaskBtn">+ Nueva Tarea</button>
+          </div>
+          
+          <div class="tasks-list" id="tasksList">
+            <!-- Las tareas se cargarán dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Tab de Notas -->
+        <div class="tab-content" id="notesTab">
+          <div class="tab-header">
+            <h3>Notas del Proyecto</h3>
+            <button class="btn btn-primary" id="newNoteBtn">+ Nueva Nota</button>
+          </div>
+          
+          <div class="notes-list" id="notesList">
+            <!-- Las notas se cargarán dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal para crear/editar tarea -->
+  <div id="taskModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">Nueva Tarea</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="taskForm">
+          <input type="hidden" id="taskId">
+          
+          <div class="form-group">
+            <label for="taskTitle">Título</label>
+            <input type="text" id="taskTitle" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="taskDescription">Descripción</label>
+            <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskDueDate">Fecha de Ejecución</label>
+              <input type="date" id="taskDueDate" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="taskCriticality">Criticidad</label>
+              <select id="taskCriticality" class="form-control">
+                <option value="low">Baja</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Imágenes</label>
+            <div class="image-upload-area" id="imageUploadArea">
+              <input type="file" id="taskImages" accept="image/*" multiple style="display: none;">
+              <button type="button" class="btn btn-secondary" id="addImageBtn">+ Añadir Imágenes</button>
+              <div class="images-preview" id="imagesPreview"></div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary modal-close-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para crear/editar nota -->
+  <div id="noteModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="noteModalTitle">Nueva Nota</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="noteForm">
+          <input type="hidden" id="noteId">
+          
+          <div class="form-group">
+            <label for="noteTitle">Título</label>
+            <input type="text" id="noteTitle" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="noteContent">Contenido</label>
+            <textarea id="noteContent" class="form-control" rows="10"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary modal-close-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/notes.js"></script>
+  <script>
+    // Obtener el ID del proyecto de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('id');
+    
+    if (!projectId) {
+      window.location.href = 'projects.html';
+    }
+  </script>
+</body>
+</html>

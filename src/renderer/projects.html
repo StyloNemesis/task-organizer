@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proyectos - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2>Mis Proyectos</h2>
+        <div class="header-actions">
+          <input type="search" id="searchProjects" placeholder="Buscar proyectos..." class="search-input">
+        </div>
+      </header>
+
+      <div class="content-body">
+        <div class="projects-grid" id="projectsGrid">
+          <!-- Los proyectos se cargarán dinámicamente -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal para crear/editar proyecto -->
+  <div id="projectModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Nuevo Proyecto</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="projectForm">
+          <input type="hidden" id="projectId">
+          
+          <div class="form-group">
+            <label for="projectName">Nombre del Proyecto</label>
+            <input type="text" id="projectName" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="parentProject">Proyecto Padre (Opcional)</label>
+            <select id="parentProject" class="form-control">
+              <option value="">-- Ninguno --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="projectColor">Color</label>
+            <input type="color" id="projectColor" class="form-control" value="#3b82f6">
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary modal-close-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+  <script src="js/projects.js"></script>
+</body>
+</html>
