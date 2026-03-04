@@ -19,11 +19,27 @@ const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', initTasks);
+document.addEventListener('DOMContentLoaded', function() {
+  initTags();
+  initTasks();
+});
 newTaskBtn.addEventListener('click', openNewTaskModal);
 taskForm.addEventListener('submit', handleTaskSubmit);
 addImageBtn.addEventListener('click', () => taskImagesInput.click());
 taskImagesInput.addEventListener('change', handleImageSelect);
+
+// Inicializar tags dinámicamente
+function initTags() {
+  const tagsContainer = document.querySelector('.tags-selector');
+  if (tagsContainer && typeof AVAILABLE_TAGS !== 'undefined') {
+    tagsContainer.innerHTML = AVAILABLE_TAGS.map(tag => `
+      <label class="tag-checkbox">
+        <input type="checkbox" name="taskTag" value="${tag}">
+        <span class="tag-label">${tag}</span>
+      </label>
+    `).join('');
+  }
+}
 
 // Tab switching
 tabButtons.forEach(btn => {
@@ -40,6 +56,12 @@ tabButtons.forEach(btn => {
 
 // Modal close handlers
 document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', function() {
+    this.closest('.modal').classList.remove('active');
+  });
+});
+
+document.querySelectorAll('.modal-close-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     this.closest('.modal').classList.remove('active');
   });
@@ -89,6 +111,7 @@ function renderTasks() {
 
   tasksList.innerHTML = tasks.map(task => {
     const images = task.images ? JSON.parse(task.images) : [];
+    const tags = task.tags ? JSON.parse(task.tags) : [];
     
     return `
       <div class="task-item ${task.completed ? 'completed' : ''}">
@@ -108,6 +131,12 @@ function renderTasks() {
               ${getCriticalityText(task.criticality)}
             </span>
           </div>
+          
+          ${tags.length > 0 ? `
+            <div class="task-tags">
+              ${tags.map(tag => `<span class="badge tag-badge">${escapeHtml(tag)}</span>`).join('')}
+            </div>
+          ` : ''}
           
           ${images.length > 0 ? `
             <div class="task-images">
@@ -136,6 +165,10 @@ function openNewTaskModal() {
   document.getElementById('taskDescription').value = '';
   document.getElementById('taskDueDate').value = '';
   document.getElementById('taskCriticality').value = 'medium';
+  
+  // Desmarcar todos los tags
+  document.querySelectorAll('input[name="taskTag"]').forEach(cb => cb.checked = false);
+  
   imagesPreview.innerHTML = '';
   taskModal.classList.add('active');
 }
@@ -146,6 +179,7 @@ async function editTask(id) {
 
   editingTaskId = id;
   taskImages = task.images ? JSON.parse(task.images) : [];
+  const taskTags = task.tags ? JSON.parse(task.tags) : [];
   
   document.getElementById('taskModalTitle').textContent = 'Editar Tarea';
   document.getElementById('taskId').value = task.id;
@@ -154,6 +188,11 @@ async function editTask(id) {
   document.getElementById('taskDueDate').value = task.due_date || '';
   document.getElementById('taskCriticality').value = task.criticality || 'medium';
   
+  // Marcar los tags que tiene la tarea
+  document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
+    cb.checked = taskTags.includes(cb.value);
+  });
+  
   renderImagePreviews();
   taskModal.classList.add('active');
 }
@@ -161,12 +200,17 @@ async function editTask(id) {
 async function handleTaskSubmit(e) {
   e.preventDefault();
 
+  // Obtener tags seleccionados
+  const selectedTags = Array.from(document.querySelectorAll('input[name="taskTag"]:checked'))
+    .map(cb => cb.value);
+
   const taskData = {
     project_id: currentProjectId,
     title: document.getElementById('taskTitle').value,
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
     criticality: document.getElementById('taskCriticality').value,
+    tags: selectedTags,
     images: taskImages
   };
 

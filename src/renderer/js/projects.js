@@ -8,6 +8,7 @@ const projectModal = document.getElementById('projectModal');
 const projectForm = document.getElementById('projectForm');
 const searchProjects = document.getElementById('searchProjects');
 const modalCloses = document.querySelectorAll('.modal-close');
+const modalClosesBtn = document.querySelectorAll('.modal-close-btn');
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', loadProjects);
@@ -24,6 +25,10 @@ projectForm.addEventListener('submit', handleProjectSubmit);
 searchProjects.addEventListener('input', filterProjects);
 
 modalCloses.forEach(btn => {
+  btn.addEventListener('click', closeModals);
+});
+
+modalClosesBtn.forEach(btn => {
   btn.addEventListener('click', closeModals);
 });
 
@@ -61,8 +66,9 @@ function renderProjects(projectsToRender) {
             ${subProjects.length > 0 ? `<span class="project-badge">${subProjects.length} subcategorías</span>` : ''}
           </div>
           <div class="project-card-actions">
-            <button class="btn btn-sm btn-secondary" onclick="editProject(${project.id})">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteProject(${project.id})">🗑️</button>
+            <button class="btn btn-sm btn-secondary" onclick="addSubProject(${project.id})" title="Añadir subproyecto">➕</button>
+            <button class="btn btn-sm btn-secondary" onclick="editProject(${project.id})" title="Editar">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProject(${project.id})" title="Eliminar">🗑️</button>
           </div>
         </div>
         <button class="btn btn-primary btn-block" onclick="openProject(${project.id})">
@@ -92,6 +98,16 @@ function openNewProjectModal() {
   document.getElementById('projectId').value = '';
   document.getElementById('projectName').value = '';
   document.getElementById('parentProject').value = '';
+  document.getElementById('projectColor').value = '#3b82f6';
+  projectModal.classList.add('active');
+}
+
+function addSubProject(parentId) {
+  editingProjectId = null;
+  document.getElementById('modalTitle').textContent = 'Nuevo Subproyecto';
+  document.getElementById('projectId').value = '';
+  document.getElementById('projectName').value = '';
+  document.getElementById('parentProject').value = parentId;
   document.getElementById('projectColor').value = '#3b82f6';
   projectModal.classList.add('active');
 }

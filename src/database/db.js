@@ -30,6 +30,7 @@ class TaskDatabase {
         title TEXT NOT NULL,
         description TEXT,
         images TEXT,
+        tags TEXT,
         due_date DATE,
         criticality TEXT CHECK(criticality IN ('low', 'medium', 'high', 'critical')),
         completed BOOLEAN DEFAULT 0,
@@ -38,6 +39,13 @@ class TaskDatabase {
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
     `);
+
+    // Añadir columna tags si no existe (migración)
+    try {
+      this.db.exec(`ALTER TABLE tasks ADD COLUMN tags TEXT`);
+    } catch (e) {
+      // La columna ya existe
+    }
 
     // Tabla de notas
     this.db.exec(`
@@ -102,15 +110,17 @@ class TaskDatabase {
 
   createTask(task) {
     const stmt = this.db.prepare(`
-      INSERT INTO tasks (project_id, title, description, images, due_date, criticality)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO tasks (project_id, title, description, images, tags, due_date, criticality)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     const images = task.images ? JSON.stringify(task.images) : null;
+    const tags = task.tags ? JSON.stringify(task.tags) : null;
     const result = stmt.run(
       task.project_id,
       task.title,
       task.description || '',
       images,
+      tags,
       task.due_date || null,
       task.criticality || 'medium'
     );
@@ -120,11 +130,12 @@ class TaskDatabase {
   updateTask(id, task) {
     const stmt = this.db.prepare(`
       UPDATE tasks
-      SET title = ?, description = ?, images = ?, due_date = ?, criticality = ?, updated_at = CURRENT_TIMESTAMP
+      SET title = ?, description = ?, images = ?, tags = ?, due_date = ?, criticality = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `);
     const images = task.images ? JSON.stringify(task.images) : null;
-    stmt.run(task.title, task.description, images, task.due_date, task.criticality, id);
+    const tags = task.tags ? JSON.stringify(task.tags) : null;
+    stmt.run(task.title, task.description, images, tags, task.due_date, task.criticality, id);
     return { id, ...task };
   }
 

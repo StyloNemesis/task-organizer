@@ -13,6 +13,7 @@ Aplicación de escritorio para organización personal desarrollada con Electron 
 - Crear tareas asociadas a proyectos
 - Marcar tareas como completadas
 - Adjuntar imágenes a las tareas
+- Asignar tags personalizables (Desarrollo, Instalación, Pruebas, etc.)
 - Establecer fecha de ejecución
 - Asignar nivel de criticidad (Baja, Media, Alta, Crítica)
 
@@ -104,6 +105,29 @@ La base de datos se encuentra en:
 - Windows: `%APPDATA%/task-organizer/tasks.db`
 - macOS: `~/Library/Application Support/task-organizer/tasks.db`
 
+### Personalización de Tags
+
+Para añadir o modificar los tags disponibles para las tareas, edita el archivo:
+```
+src/renderer/js/config.js
+```
+
+Modifica el array `AVAILABLE_TAGS`:
+```javascript
+const AVAILABLE_TAGS = [
+  'Desarrollo',
+  'Instalacion',
+  'Pruebas',
+  'Documentación',
+  'Despliegue',
+  'Info',
+  // Añade más tags aquí
+  'Tu Nuevo Tag'
+];
+```
+
+Los cambios se aplicarán automáticamente al recargar la aplicación.
+
 ## Próximas Mejoras
 
 - [ ] Empaquetar la aplicación para distribución
@@ -112,7 +136,7 @@ La base de datos se encuentra en:
 - [ ] Recordatorios y notificaciones
 - [ ] Búsqueda avanzada
 - [ ] Adjuntar archivos además de imágenes
-- [ ] Etiquetas personalizadas
+- [x] Etiquetas personalizadas (Tags)
 
 ## Licencia
 

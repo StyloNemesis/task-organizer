@@ -122,7 +122,10 @@ function renderTasks() {
     return;
   }
 
-  tasksTableBody.innerHTML = filteredTasks.map(task => `
+  tasksTableBody.innerHTML = filteredTasks.map(task => {
+    const tags = task.tags ? JSON.parse(task.tags) : [];
+    
+    return `
     <tr>
       <td>
         <span class="badge ${task.completed ? 'badge-completed' : 'badge-pending'}">
@@ -132,6 +135,7 @@ function renderTasks() {
       <td>
         <strong>${escapeHtml(task.title)}</strong>
         ${task.description ? `<br><small style="color: var(--text-secondary);">${escapeHtml(task.description.substring(0, 60))}${task.description.length > 60 ? '...' : ''}</small>` : ''}
+        ${tags.length > 0 ? `<br><div style="display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap;">${tags.map(tag => `<span class="badge tag-badge">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       </td>
       <td>
         <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
@@ -154,7 +158,7 @@ function renderTasks() {
         </div>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 async function toggleTask(id) {
