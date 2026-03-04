@@ -38,7 +38,7 @@ if (taskForm) taskForm.addEventListener('submit', handleTaskSubmit);
 if (addImageBtn) addImageBtn.addEventListener('click', () => taskImagesInput.click());
 if (taskImagesInput) taskImagesInput.addEventListener('change', handleImageSelect);
 
-document.querySelectorAll('.modal-close').forEach(btn => {
+document.querySelectorAll('.modal-close, .modal-close-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     this.closest('.modal').classList.remove('active');
   });
