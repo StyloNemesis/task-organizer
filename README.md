@@ -1,4 +1,4 @@
-# Task Organizer
+<img width="2089" height="620" alt="image" src="https://github.com/user-attachments/assets/03a6bf70-54d4-4633-a9e8-ecce17a52ac5" /># Task Organizer
 
 Aplicación de escritorio para organización personal desarrollada con Electron + Node.js.
 
@@ -131,10 +131,10 @@ Los cambios se aplicarán automáticamente al recargar la aplicación.
 ## Próximas Mejoras
 
 - [ ] Empaquetar la aplicación para distribución
-- [ ] Exportar/Importar datos
+- [ ] Soporte Markdown para la descripción de las tareas
+- [ ] Tablero Kanban
+- [ ] Vista tareas de ejecución del día actual
 - [ ] Temas personalizables (modo oscuro/claro)
-- [ ] Recordatorios y notificaciones
-- [ ] Búsqueda avanzada
 - [ ] Adjuntar archivos además de imágenes
 - [x] Etiquetas personalizadas (Tags)
 
