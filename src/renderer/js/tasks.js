@@ -126,7 +126,7 @@ function renderTasks() {
           ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
           
           <div class="task-meta">
-            ${task.due_date ? `<span>📅 ${formatDate(task.due_date)}</span>` : ''}
+            ${task.due_date ? `<span>${ICONS.calendar} ${formatDate(task.due_date)}</span>` : ''}
             <span class="badge badge-${task.criticality || 'medium'}">
               ${getCriticalityText(task.criticality)}
             </span>
@@ -151,8 +151,8 @@ function renderTasks() {
           <div class="status-buttons">
             ${getStatusButtons(task.id, status)}
           </div>
-          <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})">✏️</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})">🗑️</button>
+          <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})">${ICONS.edit}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})">${ICONS.delete}</button>
         </div>
       </div>
     `;
@@ -171,21 +171,21 @@ function getStatusBadgeClass(status) {
 
 function getStatusText(status) {
   const texts = {
-    'pending': '○ Pendiente',
-    'in_progress': '▶ En Curso',
-    'testing': '🛠 Testing',
-    'completed': '✓ Completada'
+    'pending': `${ICONS.pending} Pendiente`,
+    'in_progress': `${ICONS.inProgress} En Curso`,
+    'testing': `${ICONS.testing} Testing`,
+    'completed': `${ICONS.completed} Completada`
   };
-  return texts[status] || '○ Pendiente';
+  return texts[status] || `${ICONS.pending} Pendiente`;
 }
 
 function getStatusButtons(taskId, currentStatus) {
   const statuses = ['pending', 'in_progress', 'testing', 'completed'];
   const icons = {
-    'pending': '○',
-    'in_progress': '▶',
-    'testing': '🛠',
-    'completed': '✓'
+    'pending': ICONS.pending,
+    'in_progress': ICONS.inProgress,
+    'testing': ICONS.testing,
+    'completed': ICONS.completed
   };
   const titles = {
     'pending': 'Marcar como Pendiente',

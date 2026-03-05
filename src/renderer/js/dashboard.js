@@ -258,9 +258,9 @@ function renderTasks() {
       <td>
         <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
           ${getStatusButtons(task.id, task.status || 'pending')}
-          <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">✏️</button>
-          <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">👁️</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})" title="Eliminar">🗑️</button>
+          <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">${ICONS.edit}</button>
+          <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">${ICONS.view}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})" title="Eliminar">${ICONS.delete}</button>
         </div>
       </td>
     </tr>
@@ -279,21 +279,21 @@ function getStatusBadgeClass(status) {
 
 function getStatusText(status) {
   const texts = {
-    'pending': '○ Pendiente',
-    'in_progress': '▶ En Curso',
-    'testing': '🛠 Testing',
-    'completed': '✓ Completada'
+    'pending': `${ICONS.pending} Pendiente`,
+    'in_progress': `${ICONS.inProgress} En Curso`,
+    'testing': `${ICONS.testing} Testing`,
+    'completed': `${ICONS.completed} Completada`
   };
-  return texts[status] || '○ Pendiente';
+  return texts[status] || `${ICONS.pending} Pendiente`;
 }
 
 function getStatusButtons(taskId, currentStatus) {
   const statuses = ['pending', 'in_progress', 'testing', 'completed'];
   const icons = {
-    'pending': '○',
-    'in_progress': '▶',
-    'testing': '🛠',
-    'completed': '✓'
+    'pending': ICONS.pending,
+    'in_progress': ICONS.inProgress,
+    'testing': ICONS.testing,
+    'completed': ICONS.completed
   };
   const titles = {
     'pending': 'Marcar como Pendiente',

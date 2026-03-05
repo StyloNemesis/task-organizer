@@ -49,7 +49,7 @@ function renderNotes() {
       </div>
       <div class="note-footer">
         <span>${formatDateTime(note.updated_at)}</span>
-        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteNote(${note.id})">🗑️</button>
+        <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteNote(${note.id})">${ICONS.delete}</button>
       </div>
     </div>
   `).join('');

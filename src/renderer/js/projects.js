@@ -66,9 +66,9 @@ function renderProjects(projectsToRender) {
             ${subProjects.length > 0 ? `<span class="project-badge">${subProjects.length} subcategorías</span>` : ''}
           </div>
           <div class="project-card-actions">
-            <button class="btn btn-sm btn-secondary" onclick="addSubProject(${project.id})" title="Añadir subproyecto">➕</button>
-            <button class="btn btn-sm btn-secondary" onclick="editProject(${project.id})" title="Editar">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteProject(${project.id})" title="Eliminar">🗑️</button>
+            <button class="btn btn-sm btn-secondary" onclick="addSubProject(${project.id})" title="Añadir subproyecto">${ICONS.add}</button>
+            <button class="btn btn-sm btn-secondary" onclick="editProject(${project.id})" title="Editar">${ICONS.edit}</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProject(${project.id})" title="Eliminar">${ICONS.delete}</button>
           </div>
         </div>
         <button class="btn btn-primary btn-block" onclick="openProject(${project.id})">
@@ -80,8 +80,8 @@ function renderProjects(projectsToRender) {
               <div style="padding: 0.5rem; background: var(--bg-primary); border-radius: 0.375rem; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.875rem;">${escapeHtml(sub.name)}</span>
                 <div style="display: flex; gap: 0.25rem;">
-                  <button class="btn btn-sm btn-secondary" onclick="openProject(${sub.id})">→</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteProject(${sub.id})">🗑️</button>
+                  <button class="btn btn-sm btn-secondary" onclick="openProject(${sub.id})">${ICONS.arrow}</button>
+                  <button class="btn btn-sm btn-danger" onclick="deleteProject(${sub.id})">${ICONS.delete}</button>
                 </div>
               </div>
             `).join('')}
