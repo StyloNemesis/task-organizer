@@ -8,6 +8,22 @@ const newNoteBtn = document.getElementById('newNoteBtn');
 const noteModal = document.getElementById('noteModal');
 const noteForm = document.getElementById('noteForm');
 
+// Configurar marked para syntax highlighting
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (e) {
+        console.error('Error highlighting code:', e);
+      }
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true,
+  gfm: true
+});
+
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
   // Esperar un momento para que tasks.js establezca currentProjectId
@@ -39,6 +55,8 @@ function initMarkdownPreview() {
       
       if (isPreview) {
         preview.innerHTML = marked.parse(textarea.value || '*Sin contenido*');
+        // Aplicar syntax highlighting a bloques de código
+        preview.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
         textarea.style.display = 'none';
         preview.style.display = 'block';
         toggleBtn.innerHTML = `${ICONS.edit} Editar`;
@@ -95,6 +113,9 @@ function renderNotes() {
       </div>
     </div>
   `).join('');
+  
+  // Aplicar syntax highlighting a bloques de código
+  notesList.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
 }
 
 function openNewNoteModal() {

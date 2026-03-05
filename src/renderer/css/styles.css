@@ -891,24 +891,29 @@ body {
 }
 
 .markdown-content code {
-  background-color: var(--bg-primary);
-  padding: 0.125rem 0.25rem;
+  background-color: rgba(110, 118, 129, 0.4);
+  padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', 'Consolas', monospace;
   font-size: 0.875em;
+  color: var(--text-primary);
 }
 
 .markdown-content pre {
-  background-color: var(--bg-primary);
-  padding: 0.75rem;
-  border-radius: 0.375rem;
+  background-color: #0d1117;
+  padding: 1rem;
+  border-radius: 0.5rem;
   overflow-x: auto;
-  margin: 0.5rem 0;
+  margin: 0.75rem 0;
+  border: 1px solid rgba(110, 118, 129, 0.3);
+  line-height: 1.45;
 }
 
 .markdown-content pre code {
   background-color: transparent;
   padding: 0;
+  color: inherit;
+  font-size: 0.9em;
 }
 
 .markdown-content blockquote {

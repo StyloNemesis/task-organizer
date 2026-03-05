@@ -18,6 +18,22 @@ const sortableHeaders = document.querySelectorAll('.sortable');
 // Variable para almacenar proyectos
 let allProjects = [];
 
+// Configurar marked para syntax highlighting
+marked.setOptions({
+  highlight: function(code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (e) {
+        console.error('Error highlighting code:', e);
+      }
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true,
+  gfm: true
+});
+
 // Modal de edición
 const taskModal = document.getElementById('taskModal');
 const taskForm = document.getElementById('taskForm');
@@ -98,6 +114,8 @@ function initMarkdownPreview() {
       
       if (isPreview) {
         preview.innerHTML = marked.parse(textarea.value || '*Sin descripción*');
+        // Aplicar syntax highlighting a bloques de código
+        preview.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
         textarea.style.display = 'none';
         preview.style.display = 'block';
         toggleBtn.innerHTML = `${ICONS.edit} Editar`;
@@ -314,6 +332,9 @@ function renderTasks() {
       </td>
     </tr>
   `}).join('');
+  
+  // Aplicar syntax highlighting a bloques de código
+  tasksTableBody.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
 }
 
 function getStatusBadgeClass(status) {
