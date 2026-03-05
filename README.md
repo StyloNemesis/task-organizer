@@ -16,10 +16,13 @@ Aplicación de escritorio para organización personal desarrollada con Electron 
 - Asignar tags personalizables (Desarrollo, Instalación, Pruebas, etc.)
 - Establecer fecha de ejecución
 - Asignar nivel de criticidad (Baja, Media, Alta, Crítica)
+- **Soporte Markdown** con vista previa en tiempo real
+- **Syntax highlighting** automático para bloques de código
 
 ### 📝 Notas por Proyecto
 - Crear y editar notas asociadas a cada proyecto
 - Búsqueda y organización de notas
+- **Soporte Markdown** con vista previa
 
 ### 📊 Dashboard General
 - Vista unificada de todas las tareas
@@ -128,10 +131,58 @@ const AVAILABLE_TAGS = [
 
 Los cambios se aplicarán automáticamente al recargar la aplicación.
 
+## Uso de Markdown
+
+Las descripciones de tareas y el contenido de las notas soportan Markdown con syntax highlighting automático para bloques de código.
+
+### Ejemplos de Markdown
+
+**Formato de texto:**
+```markdown
+# Título 1
+## Título 2
+**Negrita** y *cursiva*
+- Lista con viñetas
+1. Lista numerada
+> Cita
+```
+
+**Bloques de código con syntax highlighting:**
+
+Especifica el lenguaje después de las tres comillas invertidas para obtener resaltado de sintaxis:
+
+````markdown
+```javascript
+function ejemplo() {
+  console.log('Hola mundo');
+}
+```
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+```
+
+```sql
+SELECT * FROM tasks
+WHERE status = 'completed'
+ORDER BY created_at DESC;
+```
+````
+
+Lenguajes soportados: JavaScript, Python, SQL, HTML, CSS, Java, C++, JSON, Bash, y muchos más.
+
+**Alternar Vista Previa:**
+- Usa el botón "Vista previa" para ver el markdown renderizado
+- Usa el botón "Editar" para volver al modo de edición
+
 ## Próximas Mejoras
 
 - [ ] Empaquetar la aplicación para distribución
-- [ ] Soporte Markdown para la descripción de las tareas
+- [x] Soporte Markdown para la descripción de las tareas
+- [x] Syntax highlighting para bloques de código
 - [ ] Tablero Kanban
 - [ ] Vista tareas de ejecución del día actual
 - [ ] Temas personalizables (modo oscuro/claro)
