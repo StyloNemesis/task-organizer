@@ -8,11 +8,13 @@ let taskImages = [];
 const tasksList = document.getElementById('tasksList');
 const newTaskBtn = document.getElementById('newTaskBtn');
 const taskModal = document.getElementById('taskModal');
+const taskViewModal = document.getElementById('taskViewModal');
 const taskForm = document.getElementById('taskForm');
 const addImageBtn = document.getElementById('addImageBtn');
 const taskImagesInput = document.getElementById('taskImages');
 const imagesPreview = document.getElementById('imagesPreview');
 const projectTitleEl = document.getElementById('projectTitle');
+const editFromViewBtn = document.getElementById('editFromViewBtn');
 
 // Tabs
 const tabButtons = document.querySelectorAll('.tab-btn');
@@ -39,11 +41,24 @@ document.addEventListener('DOMContentLoaded', function() {
   initTags();
   initTasks();
   initMarkdownPreview();
+  
+  // Configurar icono del botón de editar desde vista
+  if (editFromViewBtn) {
+    editFromViewBtn.innerHTML = `${ICONS.edit} Editar`;
+  }
 });
 newTaskBtn.addEventListener('click', openNewTaskModal);
 taskForm.addEventListener('submit', handleTaskSubmit);
 addImageBtn.addEventListener('click', () => taskImagesInput.click());
 taskImagesInput.addEventListener('change', handleImageSelect);
+if (editFromViewBtn) {
+  editFromViewBtn.addEventListener('click', function() {
+    taskViewModal.classList.remove('active');
+    if (editingTaskId) {
+      editTask(editingTaskId);
+    }
+  });
+}
 
 // Markdown preview toggle
 function initMarkdownPreview() {
@@ -189,7 +204,7 @@ function renderTasks() {
             ${getStatusText(status)}
           </span>
         </div>
-        <div class="task-content">
+        <div class="task-content" onclick="viewTaskDetails(${task.id})" style="cursor: pointer;">
           <div class="task-title">${escapeHtml(task.title)}</div>
           ${task.description ? `<div class="task-description markdown-content">${marked.parse(task.description)}</div>` : ''}
           
@@ -283,6 +298,76 @@ function getStatusButtons(taskId, currentStatus) {
         ${icons[status]}
       </button>
     `).join('');
+}
+
+async function viewTaskDetails(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  
+  editingTaskId = id;  // Guardar para el botón de editar
+  
+  // Título
+  document.getElementById('viewTaskTitle').textContent = task.title;
+  
+  // Descripción
+  const descContainer = document.getElementById('viewTaskDescriptionContainer');
+  const descContent = document.getElementById('viewTaskDescription');
+  if (task.description) {
+    descContent.innerHTML = marked.parse(task.description);
+    descContent.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    descContainer.style.display = 'block';
+  } else {
+    descContainer.style.display = 'none';
+  }
+  
+  // Estado
+  const statusBadge = `<span class="badge ${getStatusBadgeClass(task.status || 'pending')}">${getStatusText(task.status || 'pending')}</span>`;
+  document.getElementById('viewTaskStatus').innerHTML = statusBadge;
+  
+  // Criticidad
+  const criticalityBadge = `<span class="badge badge-${task.criticality || 'medium'}">${getCriticalityText(task.criticality)}</span>`;
+  document.getElementById('viewTaskCriticality').innerHTML = criticalityBadge;
+  
+  // Fecha de creación
+  if (task.created_at) {
+    document.getElementById('viewTaskCreated').textContent = formatDateTime(task.created_at);
+  }
+  
+  // Fecha de ejecución
+  const dueDateContainer = document.getElementById('viewTaskDueDateContainer');
+  if (task.due_date) {
+    document.getElementById('viewTaskDueDate').innerHTML = `${ICONS.calendar} ${formatDate(task.due_date)}`;
+    dueDateContainer.style.display = 'block';
+  } else {
+    dueDateContainer.style.display = 'none';
+  }
+  
+  // Tags
+  const tagsContainer = document.getElementById('viewTaskTagsContainer');
+  const tags = task.tags ? JSON.parse(task.tags) : [];
+  if (tags.length > 0) {
+    document.getElementById('viewTaskTags').innerHTML = tags.map(tag => 
+      `<span class="badge tag-badge">${escapeHtml(tag)}</span>`
+    ).join('');
+    tagsContainer.style.display = 'block';
+  } else {
+    tagsContainer.style.display = 'none';
+  }
+  
+  // Imágenes
+  const imagesContainer = document.getElementById('viewTaskImagesContainer');
+  const images = task.images ? JSON.parse(task.images) : [];
+  if (images.length > 0) {
+    document.getElementById('viewTaskImages').innerHTML = images.map(img => 
+      `<img src="${img}" alt="Task image" class="task-image" onclick="viewImage('${img}')">`
+    ).join('');
+    imagesContainer.style.display = 'block';
+  } else {
+    imagesContainer.style.display = 'none';
+  }
+  
+  // Abrir modal
+  taskViewModal.classList.add('active');
 }
 
 function openNewTaskModal() {
@@ -446,6 +531,17 @@ function getCriticalityText(criticality) {
 function formatDate(dateString) {
   const date = new Date(dateString);
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function escapeHtml(text) {

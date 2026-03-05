@@ -36,10 +36,13 @@ marked.setOptions({
 
 // Modal de edición
 const taskModal = document.getElementById('taskModal');
+const taskViewModal = document.getElementById('taskViewModal');
 const taskForm = document.getElementById('taskForm');
 const addImageBtn = document.getElementById('addImageBtn');
 const taskImagesInput = document.getElementById('taskImages');
 const imagesPreview = document.getElementById('imagesPreview');
+const editFromViewBtn = document.getElementById('editFromViewBtn');
+const goToProjectBtn = document.getElementById('goToProjectBtn');
 
 // Elementos de estadísticas
 const totalTasksEl = document.getElementById('totalTasks');
@@ -52,6 +55,33 @@ document.addEventListener('DOMContentLoaded', function() {
   initTags();
   init();
   initMarkdownPreview();
+  
+  // Configurar iconos de botones
+  if (editFromViewBtn) {
+    editFromViewBtn.innerHTML = `${ICONS.edit} Editar`;
+  }
+  if (goToProjectBtn) {
+    goToProjectBtn.innerHTML = `${ICONS.arrow} Ir al Proyecto`;
+  }
+  
+  // Event listeners para botones del modal de visualización
+  if (editFromViewBtn) {
+    editFromViewBtn.addEventListener('click', function() {
+      taskViewModal.classList.remove('active');
+      if (editingTaskId) {
+        editTask(editingTaskId);
+      }
+    });
+  }
+  
+  if (goToProjectBtn) {
+    goToProjectBtn.addEventListener('click', function() {
+      const task = allTasks.find(t => t.id === editingTaskId);
+      if (task) {
+        window.location.href = `project.html?id=${task.project_id}`;
+      }
+    });
+  }
 });
 filterMainProject.addEventListener('change', function() {
   loadSubProjects();
@@ -283,7 +313,7 @@ function renderTasks() {
     const tags = task.tags ? JSON.parse(task.tags) : [];
     
     return `
-    <tr>
+    <tr onclick="handleRowClick(event, ${task.id})" style="cursor: pointer;">
       <td>
         <span class="badge ${getStatusBadgeClass(task.status || 'pending')}">
           ${getStatusText(task.status || 'pending')}
@@ -326,7 +356,6 @@ function renderTasks() {
         <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
           ${getStatusButtons(task.id, task.status || 'pending')}
           <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">${ICONS.edit}</button>
-          <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">${ICONS.view}</button>
           <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})" title="Eliminar">${ICONS.delete}</button>
         </div>
       </td>
@@ -400,11 +429,108 @@ async function updateTaskStatus(id, status) {
   }
 }
 
+function handleRowClick(event, taskId) {
+  // No abrir modal si se hizo clic en un botón o dentro de un botón
+  if (event.target.closest('button')) {
+    return;
+  }
+  viewTask(taskId);
+}
+
 function viewTask(taskId) {
   const task = allTasks.find(t => t.id === taskId);
-  if (task) {
-    window.location.href = `project.html?id=${task.project_id}`;
+  if (!task) return;
+  
+  editingTaskId = taskId;  // Guardar para los botones de editar e ir al proyecto
+  
+  // Título
+  document.getElementById('viewTaskTitle').textContent = task.title;
+  
+  // Descripción
+  const descContainer = document.getElementById('viewTaskDescriptionContainer');
+  const descContent = document.getElementById('viewTaskDescription');
+  if (task.description) {
+    descContent.innerHTML = marked.parse(task.description);
+    descContent.querySelectorAll('pre code').forEach(block => hljs.highlightElement(block));
+    descContainer.style.display = 'block';
+  } else {
+    descContainer.style.display = 'none';
   }
+  
+  // Estado
+  const statusBadge = `<span class="badge ${getStatusBadgeClass(task.status || 'pending')}">${getStatusText(task.status || 'pending')}</span>`;
+  document.getElementById('viewTaskStatus').innerHTML = statusBadge;
+  
+  // Criticidad
+  const criticalityBadge = `<span class="badge badge-${task.criticality || 'medium'}">${getCriticalityText(task.criticality)}</span>`;
+  document.getElementById('viewTaskCriticality').innerHTML = criticalityBadge;
+  
+  // Proyecto principal
+  const projectColor = task.parent_project_color || task.project_color || '#3b82f6';
+  const projectName = task.parent_project_name || task.project_name || 'Sin proyecto';
+  document.getElementById('viewTaskProject').innerHTML = `
+    <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+      <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${projectColor};"></span>
+      ${escapeHtml(projectName)}
+    </span>
+  `;
+  
+  // Subcategoría
+  const subprojectContainer = document.getElementById('viewTaskSubprojectContainer');
+  if (task.parent_project_name) {
+    const subprojectColor = task.project_color || '#3b82f6';
+    const subprojectName = task.project_name || 'Sin subcategoría';
+    document.getElementById('viewTaskSubproject').innerHTML = `
+      <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+        <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${subprojectColor};"></span>
+        ${escapeHtml(subprojectName)}
+      </span>
+    `;
+    subprojectContainer.style.display = 'block';
+  } else {
+    subprojectContainer.style.display = 'none';
+  }
+  
+  // Fecha de creación
+  if (task.created_at) {
+    document.getElementById('viewTaskCreated').textContent = formatDateTime(task.created_at);
+  }
+  
+  // Fecha de ejecución
+  const dueDateContainer = document.getElementById('viewTaskDueDateContainer');
+  if (task.due_date) {
+    document.getElementById('viewTaskDueDate').innerHTML = `${ICONS.calendar} ${formatDate(task.due_date)}`;
+    dueDateContainer.style.display = 'block';
+  } else {
+    dueDateContainer.style.display = 'none';
+  }
+  
+  // Tags
+  const tagsContainer = document.getElementById('viewTaskTagsContainer');
+  const tags = task.tags ? JSON.parse(task.tags) : [];
+  if (tags.length > 0) {
+    document.getElementById('viewTaskTags').innerHTML = tags.map(tag => 
+      `<span class="badge tag-badge">${escapeHtml(tag)}</span>`
+    ).join('');
+    tagsContainer.style.display = 'block';
+  } else {
+    tagsContainer.style.display = 'none';
+  }
+  
+  // Imágenes
+  const imagesContainer = document.getElementById('viewTaskImagesContainer');
+  const images = task.images ? JSON.parse(task.images) : [];
+  if (images.length > 0) {
+    document.getElementById('viewTaskImages').innerHTML = images.map(img => 
+      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="window.open('${img}', '_blank')">`
+    ).join('');
+    imagesContainer.style.display = 'block';
+  } else {
+    imagesContainer.style.display = 'none';
+  }
+  
+  // Abrir modal
+  taskViewModal.classList.add('active');
 }
 
 async function deleteTask(id) {

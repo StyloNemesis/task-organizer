@@ -54,6 +54,67 @@
     </main>
   </div>
 
+  <!-- Modal para visualizar tarea (solo lectura) -->
+  <div id="taskViewModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="taskViewTitle">Detalles de la Tarea</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div>
+            <h4 id="viewTaskTitle" style="margin: 0; color: var(--text-primary);"></h4>
+          </div>
+          
+          <div id="viewTaskDescriptionContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Descripción</label>
+            <div id="viewTaskDescription" class="markdown-content" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);"></div>
+          </div>
+          
+          <div class="form-row">
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Estado</label>
+              <span id="viewTaskStatus"></span>
+            </div>
+            
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Criticidad</label>
+              <span id="viewTaskCriticality"></span>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div id="viewTaskCreatedContainer">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Fecha de Creación</label>
+              <span id="viewTaskCreated"></span>
+            </div>
+            
+            <div id="viewTaskDueDateContainer" style="display: none;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Fecha de Ejecución</label>
+              <span id="viewTaskDueDate"></span>
+            </div>
+          </div>
+          
+          <div id="viewTaskTagsContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Tags</label>
+            <div id="viewTaskTags" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+          </div>
+          
+          <div id="viewTaskImagesContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Imágenes</label>
+            <div id="viewTaskImages" class="task-images"></div>
+          </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary modal-close-btn">Cerrar</button>
+          <button type="button" class="btn btn-primary" id="editFromViewBtn">Editar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal para crear/editar tarea -->
   <div id="taskModal" class="modal">
     <div class="modal-content modal-large">
@@ -76,7 +137,7 @@
               <button type="button" class="btn btn-sm btn-secondary" id="toggleTaskPreview" style="float: right;">Vista previa</button>
             </label>
             <textarea id="taskDescription" class="form-control" rows="4"></textarea>
-            <div id="taskDescriptionPreview" class="markdown-preview" style="display: none;"></div>
+            <div id="taskDescriptionPreview" class="markdown-preview markdown-content" style="display: none;"></div>
           </div>
 
           <div class="form-row">
@@ -153,7 +214,7 @@
               <button type="button" class="btn btn-sm btn-secondary" id="toggleNotePreview" style="float: right;">Vista previa</button>
             </label>
             <textarea id="noteContent" class="form-control" rows="10"></textarea>
-            <div id="noteContentPreview" class="markdown-preview" style="display: none;"></div>
+            <div id="noteContentPreview" class="markdown-preview markdown-content" style="display: none;"></div>
           </div>
 
           <div class="form-actions">

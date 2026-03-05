@@ -912,8 +912,8 @@ body {
 .markdown-content pre code {
   background-color: transparent;
   padding: 0;
-  color: inherit;
   font-size: 0.9em;
+  color: #c9d1d9;
 }
 
 .markdown-content blockquote {
