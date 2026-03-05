@@ -12,6 +12,7 @@ const noteForm = document.getElementById('noteForm');
 document.addEventListener('DOMContentLoaded', () => {
   // Esperar un momento para que tasks.js establezca currentProjectId
   setTimeout(loadNotes, 100);
+  initMarkdownPreview();
 });
 
 newNoteBtn.addEventListener('click', openNewNoteModal);
@@ -20,6 +21,47 @@ noteForm.addEventListener('submit', handleNoteSubmit);
 noteModal.addEventListener('click', (e) => {
   if (e.target === noteModal) noteModal.classList.remove('active');
 });
+
+// Markdown preview toggle
+function initMarkdownPreview() {
+  const toggleBtn = document.getElementById('toggleNotePreview');
+  const textarea = document.getElementById('noteContent');
+  const preview = document.getElementById('noteContentPreview');
+  
+  if (toggleBtn && textarea && preview) {
+    // Establecer icono inicial
+    toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+    
+    let isPreview = false;
+    
+    toggleBtn.addEventListener('click', function() {
+      isPreview = !isPreview;
+      
+      if (isPreview) {
+        preview.innerHTML = marked.parse(textarea.value || '*Sin contenido*');
+        textarea.style.display = 'none';
+        preview.style.display = 'block';
+        toggleBtn.innerHTML = `${ICONS.edit} Editar`;
+      } else {
+        textarea.style.display = 'block';
+        preview.style.display = 'none';
+        toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+      }
+    });
+  }
+}
+
+function resetMarkdownPreview() {
+  const toggleBtn = document.getElementById('toggleNotePreview');
+  const textarea = document.getElementById('noteContent');
+  const preview = document.getElementById('noteContentPreview');
+  
+  if (toggleBtn && textarea && preview) {
+    textarea.style.display = 'block';
+    preview.style.display = 'none';
+    toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+  }
+}
 
 async function loadNotes() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -44,8 +86,8 @@ function renderNotes() {
   notesList.innerHTML = notes.map(note => `
     <div class="note-card" onclick="editNote(${note.id})">
       <h4>${escapeHtml(note.title)}</h4>
-      <div class="note-content">
-        ${escapeHtml(note.content || '')}
+      <div class="note-content markdown-content">
+        ${marked.parse(note.content || '*Sin contenido*')}
       </div>
       <div class="note-footer">
         <span>${formatDateTime(note.updated_at)}</span>
@@ -61,6 +103,7 @@ function openNewNoteModal() {
   document.getElementById('noteId').value = '';
   document.getElementById('noteTitle').value = '';
   document.getElementById('noteContent').value = '';
+  resetMarkdownPreview();
   noteModal.classList.add('active');
 }
 
@@ -73,6 +116,7 @@ async function editNote(id) {
   document.getElementById('noteId').value = note.id;
   document.getElementById('noteTitle').value = note.title;
   document.getElementById('noteContent').value = note.content || '';
+  resetMarkdownPreview();
   noteModal.classList.add('active');
 }
 

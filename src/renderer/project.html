@@ -70,8 +70,12 @@
           </div>
 
           <div class="form-group">
-            <label for="taskDescription">Descripción</label>
+            <label for="taskDescription">
+              Descripción
+              <button type="button" class="btn btn-sm btn-secondary" id="toggleTaskPreview" style="float: right;">Vista previa</button>
+            </label>
             <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+            <div id="taskDescriptionPreview" class="markdown-preview" style="display: none;"></div>
           </div>
 
           <div class="form-row">
@@ -143,8 +147,12 @@
           </div>
 
           <div class="form-group">
-            <label for="noteContent">Contenido</label>
+            <label for="noteContent">
+              Contenido (Markdown soportado)
+              <button type="button" class="btn btn-sm btn-secondary" id="toggleNotePreview" style="float: right;">Vista previa</button>
+            </label>
             <textarea id="noteContent" class="form-control" rows="10"></textarea>
+            <div id="noteContentPreview" class="markdown-preview" style="display: none;"></div>
           </div>
 
           <div class="form-actions">
@@ -169,6 +177,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="js/icons.js"></script>
   <script src="js/config.js"></script>
   <script src="js/sidebar.js"></script>

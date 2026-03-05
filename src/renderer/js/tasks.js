@@ -22,11 +22,53 @@ const tabContents = document.querySelectorAll('.tab-content');
 document.addEventListener('DOMContentLoaded', function() {
   initTags();
   initTasks();
+  initMarkdownPreview();
 });
 newTaskBtn.addEventListener('click', openNewTaskModal);
 taskForm.addEventListener('submit', handleTaskSubmit);
 addImageBtn.addEventListener('click', () => taskImagesInput.click());
 taskImagesInput.addEventListener('change', handleImageSelect);
+
+// Markdown preview toggle
+function initMarkdownPreview() {
+  const toggleBtn = document.getElementById('toggleTaskPreview');
+  const textarea = document.getElementById('taskDescription');
+  const preview = document.getElementById('taskDescriptionPreview');
+  
+  if (toggleBtn && textarea && preview) {
+    // Establecer icono inicial
+    toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+    
+    let isPreview = false;
+    
+    toggleBtn.addEventListener('click', function() {
+      isPreview = !isPreview;
+      
+      if (isPreview) {
+        preview.innerHTML = marked.parse(textarea.value || '*Sin descripción*');
+        textarea.style.display = 'none';
+        preview.style.display = 'block';
+        toggleBtn.innerHTML = `${ICONS.edit} Editar`;
+      } else {
+        textarea.style.display = 'block';
+        preview.style.display = 'none';
+        toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+      }
+    });
+  }
+}
+
+function resetMarkdownPreview() {
+  const toggleBtn = document.getElementById('toggleTaskPreview');
+  const textarea = document.getElementById('taskDescription');
+  const preview = document.getElementById('taskDescriptionPreview');
+  
+  if (toggleBtn && textarea && preview) {
+    textarea.style.display = 'block';
+    preview.style.display = 'none';
+    toggleBtn.innerHTML = `${ICONS.view} Vista previa`;
+  }
+}
 
 // Inicializar tags dinámicamente
 function initTags() {
@@ -131,7 +173,7 @@ function renderTasks() {
         </div>
         <div class="task-content">
           <div class="task-title">${escapeHtml(task.title)}</div>
-          ${task.description ? `<div class="task-description">${escapeHtml(task.description)}</div>` : ''}
+          ${task.description ? `<div class="task-description markdown-content">${marked.parse(task.description)}</div>` : ''}
           
           <div class="task-meta">
             ${task.due_date ? `<span>${ICONS.calendar} ${formatDate(task.due_date)}</span>` : ''}
@@ -237,6 +279,7 @@ function openNewTaskModal() {
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => cb.checked = false);
   
   imagesPreview.innerHTML = '';
+  resetMarkdownPreview();
   taskModal.classList.add('active');
 }
 
@@ -262,6 +305,7 @@ async function editTask(id) {
   });
   
   renderImagePreviews();
+  resetMarkdownPreview();
   taskModal.classList.add('active');
 }
 
