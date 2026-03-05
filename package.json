@@ -1,0 +1,27 @@
+{
+  "name": "task-organizer",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio para organización personal",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
+  },
+  "keywords": [
+    "electron",
+    "task",
+    "organizer",
+    "productivity"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-rebuild": "^3.2.9",
+    "electron-reload": "^2.0.0-alpha.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.2.2"
+  }
+}
