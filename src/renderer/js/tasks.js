@@ -143,14 +143,26 @@ document.querySelectorAll('.modal-close-btn').forEach(btn => {
 });
 
 taskModal.addEventListener('click', (e) => {
-  if (e.target === taskModal) taskModal.classList.remove('active');
+  if (e.target === taskModal && !window.shouldPreventModalClose?.()) {
+    taskModal.classList.remove('active');
+  }
 });
+
+if (taskViewModal) {
+  taskViewModal.addEventListener('click', (e) => {
+    if (e.target === taskViewModal && !window.shouldPreventModalClose?.()) {
+      taskViewModal.classList.remove('active');
+    }
+  });
+}
 
 // Image viewer modal close on background click
 const imageViewerModal = document.getElementById('imageViewerModal');
 if (imageViewerModal) {
   imageViewerModal.addEventListener('click', (e) => {
-    if (e.target === imageViewerModal) imageViewerModal.classList.remove('active');
+    if (e.target === imageViewerModal && !window.shouldPreventModalClose?.()) {
+      imageViewerModal.classList.remove('active');
+    }
   });
 }
 

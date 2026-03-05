@@ -262,6 +262,11 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
 .search-input {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
@@ -663,13 +668,16 @@ body {
   border-radius: 0.5rem;
   width: 90%;
   max-width: 500px;
+  min-width: 400px;
   max-height: 90vh;
+  overflow-x: hidden;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .modal-large {
-  max-width: 700px;
+  max-width: 1800px; /* Permitir modales mucho más anchos */
+  min-width: 600px;
 }
 
 .modal-header {
@@ -725,6 +733,12 @@ body {
 
 .modal-body {
   padding: 1.5rem;
+  overflow-x: hidden;
+  word-wrap: break-word;
+}
+
+.modal-body * {
+  max-width: 100%;
 }
 
 /* Image Upload */
@@ -858,6 +872,8 @@ body {
   line-height: 1.6;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .markdown-content h1,
@@ -907,6 +923,8 @@ body {
   margin: 0.75rem 0;
   border: 1px solid rgba(110, 118, 129, 0.3);
   line-height: 1.45;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .markdown-content pre code {
@@ -972,7 +990,10 @@ body {
   min-height: 100px;
   background-color: var(--bg-secondary);
   overflow-y: auto;
+  overflow-x: hidden;
   max-height: 400px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .markdown-preview.markdown-content ul,

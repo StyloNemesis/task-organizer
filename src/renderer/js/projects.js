@@ -33,7 +33,9 @@ modalClosesBtn.forEach(btn => {
 });
 
 projectModal.addEventListener('click', (e) => {
-  if (e.target === projectModal) closeModals();
+  if (e.target === projectModal && !window.shouldPreventModalClose?.()) {
+    closeModals();
+  }
 });
 
 // Funciones
