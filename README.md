@@ -1,4 +1,5 @@
-<img width="2089" height="620" alt="image" src="https://github.com/user-attachments/assets/03a6bf70-54d4-4633-a9e8-ecce17a52ac5" /># Task Organizer
+<img width="2089" height="620" alt="image" src="https://github.com/user-attachments/assets/03a6bf70-54d4-4633-a9e8-ecce17a52ac5" />
+# Task Organizer
 
 Aplicación de escritorio para organización personal desarrollada con Electron + Node.js.
 
