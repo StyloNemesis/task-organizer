@@ -1,8 +1,8 @@
 // dashboard.js - Dashboard con todas las tareas
 let allTasks = [];
 let filteredTasks = [];
-let sortColumn = 'due_date';
-let sortDirection = 'asc';
+let sortColumn = 'created_at';
+let sortDirection = 'desc';
 let editingTaskId = null;
 let taskImages = [];
 
@@ -211,7 +211,7 @@ function renderTasks() {
   if (filteredTasks.length === 0) {
     tasksTableBody.innerHTML = `
       <tr>
-        <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+        <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
           No hay tareas que mostrar
         </td>
       </tr>
@@ -253,12 +253,14 @@ function renderTasks() {
           ${getCriticalityText(task.criticality)}
         </span>
       </td>
+      <td>${task.created_at ? formatDateTime(task.created_at) : '-'}</td>
       <td>${task.due_date ? formatDate(task.due_date) : '-'}</td>
       <td>
         <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
           ${getStatusButtons(task.id, task.status || 'pending')}
           <button class="btn btn-sm btn-secondary" onclick="editTask(${task.id})" title="Editar">✏️</button>
           <button class="btn btn-sm btn-primary" onclick="viewTask(${task.id})" title="Ver proyecto">👁️</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteTask(${task.id})" title="Eliminar">🗑️</button>
         </div>
       </td>
     </tr>
@@ -335,6 +337,18 @@ function viewTask(taskId) {
   }
 }
 
+async function deleteTask(id) {
+  if (!confirm('¿Estás seguro de eliminar esta tarea?')) return;
+
+  try {
+    await window.api.deleteTask(id);
+    await loadTasks();
+  } catch (error) {
+    console.error('Error al eliminar tarea:', error);
+    alert('Error al eliminar la tarea');
+  }
+}
+
 function getCriticalityText(criticality) {
   const texts = {
     low: 'Baja',
@@ -348,6 +362,17 @@ function getCriticalityText(criticality) {
 function formatDate(dateString) {
   const date = new Date(dateString);
   return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function formatDateTime(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-ES', { 
+    day: '2-digit', 
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 function escapeHtml(text) {
