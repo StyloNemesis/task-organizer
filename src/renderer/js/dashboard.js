@@ -240,13 +240,20 @@ function renderTasks() {
             <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${task.parent_project_color || '#3b82f6'};"></span>
             ${escapeHtml(task.parent_project_name)}
           </span>
-        ` : '-'}
+        ` : `
+          <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${task.project_color || '#3b82f6'};"></span>
+            ${escapeHtml(task.project_name || 'Sin proyecto')}
+          </span>
+        `}
       </td>
       <td>
-        <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
-          <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${task.project_color || '#3b82f6'};"></span>
-          ${escapeHtml(task.project_name || 'Sin proyecto')}
-        </span>
+        ${task.parent_project_name ? `
+          <span style="display: inline-flex; align-items: center; gap: 0.5rem;">
+            <span style="width: 12px; height: 12px; border-radius: 50%; background-color: ${task.project_color || '#3b82f6'};"></span>
+            ${escapeHtml(task.project_name || 'Sin proyecto')}
+          </span>
+        ` : '-'}
       </td>
       <td>
         <span class="badge badge-${task.criticality || 'medium'}">
