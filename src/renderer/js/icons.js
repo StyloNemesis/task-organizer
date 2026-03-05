@@ -47,6 +47,22 @@ const ICONS = {
   arrow: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M3.33301 8H12.6663" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M8 3.33337L12.6667 8.00004L8 12.6667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  
+  clipboard: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M13.3333 3.33337H15.8333C16.2754 3.33337 16.6993 3.50897 17.0118 3.82153C17.3244 4.13409 17.5 4.55801 17.5 5.00004V16.6667C17.5 17.1087 17.3244 17.5327 17.0118 17.8452C16.6993 18.1578 16.2754 18.3334 15.8333 18.3334H4.16667C3.72464 18.3334 3.30072 18.1578 2.98816 17.8452C2.67559 17.5327 2.5 17.1087 2.5 16.6667V5.00004C2.5 4.55801 2.67559 4.13409 2.98816 3.82153C3.30072 3.50897 3.72464 3.33337 4.16667 3.33337H6.66667" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M12.5 1.66663H7.5C7.04167 1.66663 6.66667 2.04163 6.66667 2.49996V4.16663C6.66667 4.62496 7.04167 4.99996 7.5 4.99996H12.5C12.9583 4.99996 13.3333 4.62496 13.3333 4.16663V2.49996C13.3333 2.04163 12.9583 1.66663 12.5 1.66663Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  
+  dashboard: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M7.5 2.5H2.5V7.5H7.5V2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M17.5 2.5H12.5V7.5H17.5V2.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M17.5 12.5H12.5V17.5H17.5V12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M7.5 12.5H2.5V17.5H7.5V12.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  
+  folder: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M18.3333 15.8334C18.3333 16.2754 18.1577 16.6993 17.8452 17.0119C17.5326 17.3244 17.1087 17.5 16.6667 17.5H3.33333C2.89131 17.5 2.46738 17.3244 2.15482 17.0119C1.84226 16.6993 1.66667 16.2754 1.66667 15.8334V4.16671C1.66667 3.72468 1.84226 3.30076 2.15482 2.9882C2.46738 2.67564 2.89131 2.50004 3.33333 2.50004H7.5L9.16667 5.00004H16.6667C17.1087 5.00004 17.5326 5.17564 17.8452 5.4882C18.1577 5.80076 18.3333 6.22468 18.3333 6.66671V15.8334Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 };
 

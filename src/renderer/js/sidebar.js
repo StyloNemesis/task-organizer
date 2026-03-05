@@ -7,16 +7,16 @@
   const sidebarHTML = `
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h1>📋 Task Organizer</h1>
+        <h1>${ICONS.clipboard} Task Organizer</h1>
       </div>
       
       <nav class="sidebar-nav">
         <a href="index.html" class="nav-link ${currentPage === 'index.html' ? 'active' : ''}">
-          <span class="icon">📊</span>
+          <span class="icon">${ICONS.dashboard}</span>
           Dashboard
         </a>
         <a href="projects.html" class="nav-link ${currentPage === 'projects.html' ? 'active' : ''}">
-          <span class="icon">📁</span>
+          <span class="icon">${ICONS.folder}</span>
           Proyectos
         </a>
       </nav>
