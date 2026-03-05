@@ -71,6 +71,14 @@ taskModal.addEventListener('click', (e) => {
   if (e.target === taskModal) taskModal.classList.remove('active');
 });
 
+// Image viewer modal close on background click
+const imageViewerModal = document.getElementById('imageViewerModal');
+if (imageViewerModal) {
+  imageViewerModal.addEventListener('click', (e) => {
+    if (e.target === imageViewerModal) imageViewerModal.classList.remove('active');
+  });
+}
+
 async function initTasks() {
   const urlParams = new URLSearchParams(window.location.search);
   currentProjectId = urlParams.get('id');
@@ -351,8 +359,13 @@ function removeImage(index) {
 }
 
 function viewImage(src) {
-  // Simple image viewer - podría mejorarse con un modal
-  window.open(src, '_blank');
+  const imageViewerModal = document.getElementById('imageViewerModal');
+  const imageViewerImg = document.getElementById('imageViewerImg');
+  
+  if (imageViewerModal && imageViewerImg) {
+    imageViewerImg.src = src;
+    imageViewerModal.classList.add('active');
+  }
 }
 
 function getCriticalityText(criticality) {
