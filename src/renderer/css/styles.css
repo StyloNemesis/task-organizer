@@ -262,6 +262,11 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
 .search-input {
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);
@@ -663,13 +668,15 @@ body {
   border-radius: 0.5rem;
   width: 90%;
   max-width: 500px;
+  min-width: 400px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
 .modal-large {
-  max-width: 700px;
+  max-width: 1800px; /* Permitir modales mucho más anchos */
+  min-width: 600px;
 }
 
 .modal-header {

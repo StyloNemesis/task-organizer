@@ -35,7 +35,9 @@ newNoteBtn.addEventListener('click', openNewNoteModal);
 noteForm.addEventListener('submit', handleNoteSubmit);
 
 noteModal.addEventListener('click', (e) => {
-  if (e.target === noteModal) noteModal.classList.remove('active');
+  if (e.target === noteModal && !window.shouldPreventModalClose?.()) {
+    noteModal.classList.remove('active');
+  }
 });
 
 // Markdown preview toggle

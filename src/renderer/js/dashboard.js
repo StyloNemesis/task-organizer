@@ -105,7 +105,17 @@ document.querySelectorAll('.modal-close, .modal-close-btn').forEach(btn => {
 
 if (taskModal) {
   taskModal.addEventListener('click', (e) => {
-    if (e.target === taskModal) taskModal.classList.remove('active');
+    if (e.target === taskModal && !window.shouldPreventModalClose?.()) {
+      taskModal.classList.remove('active');
+    }
+  });
+}
+
+if (taskViewModal) {
+  taskViewModal.addEventListener('click', (e) => {
+    if (e.target === taskViewModal && !window.shouldPreventModalClose?.()) {
+      taskViewModal.classList.remove('active');
+    }
   });
 }
 
