@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function() {
     leftHandle.className = 'modal-resize-handle modal-resize-handle-left';
     rightHandle.className = 'modal-resize-handle modal-resize-handle-right';
     
-    leftHandle.style.cssText = 'position: absolute; left: -5px; top: 0; width: 10px; height: 100%; cursor: ew-resize; z-index: 10;';
-    rightHandle.style.cssText = 'position: absolute; right: -5px; top: 0; width: 10px; height: 100%; cursor: ew-resize; z-index: 10;';
+    leftHandle.style.cssText = 'position: absolute; left: 0; top: 0; width: 5px; height: 100%; cursor: ew-resize; z-index: 10;';
+    rightHandle.style.cssText = 'position: absolute; right: 0; top: 0; width: 5px; height: 100%; cursor: ew-resize; z-index: 10;';
     
     modalContent.style.position = 'relative';
     modalContent.appendChild(leftHandle);
