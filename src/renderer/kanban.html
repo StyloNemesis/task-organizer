@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tablero Kanban - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2>Tablero Kanban</h2>
+        <div class="header-actions">
+          <select id="filterMainProject" class="form-control">
+            <option value="">Todos los proyectos</option>
+          </select>
+          <select id="filterSubProject" class="form-control">
+            <option value="">Todas las subcategorías</option>
+          </select>
+          <input type="search" id="searchTasks" placeholder="Buscar tareas..." class="search-input">
+          <button class="btn btn-primary" id="newTaskBtn" style="margin-left: auto;">+ Nueva Tarea</button>
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- Tablero Kanban -->
+        <div class="kanban-board" id="kanbanBoard">
+          <div class="kanban-column" data-status="pending">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="pending"></span>
+              <h3>Pendiente</h3>
+              <span class="kanban-column-count" id="count-pending">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-pending">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="in_progress">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="inProgress"></span>
+              <h3>En Curso</h3>
+              <span class="kanban-column-count" id="count-in_progress">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-in_progress">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="testing">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="testing"></span>
+              <h3>Testing</h3>
+              <span class="kanban-column-count" id="count-testing">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-testing">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="completed">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="completed"></span>
+              <h3>Completada</h3>
+              <span class="kanban-column-count" id="count-completed">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-completed">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Los modales se cargarán dinámicamente mediante modal-loader.js -->
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="js/modal-loader.js"></script>
+  <script>
+    // Cargar modales de forma síncrona ANTES de cargar otros scripts
+    window.initModals(['taskEdit', 'taskView', 'imageViewer']);
+  </script>
+  <script src="js/icons.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/external-links.js"></script>
+  <script src="js/modal-resize.js"></script>
+  <script src="js/kanban.js"></script>
+</body>
+</html>

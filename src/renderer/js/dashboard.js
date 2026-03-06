@@ -43,6 +43,13 @@ const taskImagesInput = document.getElementById('taskImages');
 const imagesPreview = document.getElementById('imagesPreview');
 const editFromViewBtn = document.getElementById('editFromViewBtn');
 const goToProjectBtn = document.getElementById('goToProjectBtn');
+const newTaskBtn = document.getElementById('newTaskBtn');
+
+// Elementos de selectores de proyecto en el modal
+const taskProjectSelector = document.getElementById('taskProjectSelector');
+const taskSubProjectSelector = document.getElementById('taskSubProjectSelector');
+const taskMainProject = document.getElementById('taskMainProject');
+const taskSubProject = document.getElementById('taskSubProject');
 
 // Elementos de estadísticas
 const totalTasksEl = document.getElementById('totalTasks');
@@ -96,6 +103,12 @@ searchTasks.addEventListener('input', applyFilters);
 if (taskForm) taskForm.addEventListener('submit', handleTaskSubmit);
 if (addImageBtn) addImageBtn.addEventListener('click', () => taskImagesInput.click());
 if (taskImagesInput) taskImagesInput.addEventListener('change', handleImageSelect);
+if (newTaskBtn) newTaskBtn.addEventListener('click', openNewTaskModal);
+
+// Event listener para cambio de proyecto principal en el modal
+if (taskMainProject) {
+  taskMainProject.addEventListener('change', loadTaskSubProjects);
+}
 
 document.querySelectorAll('.modal-close, .modal-close-btn').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -115,6 +128,16 @@ if (taskViewModal) {
   taskViewModal.addEventListener('click', (e) => {
     if (e.target === taskViewModal && !window.shouldPreventModalClose?.()) {
       taskViewModal.classList.remove('active');
+    }
+  });
+}
+
+// Image viewer modal close on background click
+const imageViewerModal = document.getElementById('imageViewerModal');
+if (imageViewerModal) {
+  imageViewerModal.addEventListener('click', (e) => {
+    if (e.target === imageViewerModal && !window.shouldPreventModalClose?.()) {
+      imageViewerModal.classList.remove('active');
     }
   });
 }
@@ -532,7 +555,7 @@ function viewTask(taskId) {
   const images = task.images ? JSON.parse(task.images) : [];
   if (images.length > 0) {
     document.getElementById('viewTaskImages').innerHTML = images.map(img => 
-      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="window.open('${img}', '_blank')">`
+      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="viewImage('${img}')">`
     ).join('');
     imagesContainer.style.display = 'block';
   } else {
@@ -541,6 +564,13 @@ function viewTask(taskId) {
   
   // Abrir modal
   taskViewModal.classList.add('active');
+}
+
+function viewImage(src) {
+  const modal = document.getElementById('imageViewerModal');
+  const img = document.getElementById('imageViewerImg');
+  img.src = src;
+  modal.classList.add('active');
 }
 
 async function deleteTask(id) {
@@ -623,9 +653,79 @@ async function editTask(id) {
     cb.checked = taskTags.includes(cb.value);
   });
   
+  // Ocultar selectores de proyecto (modo edición)
+  if (taskProjectSelector) taskProjectSelector.style.display = 'none';
+  if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'none';
+  
   renderImagePreviews();
   resetMarkdownPreview();
   taskModal.classList.add('active');
+}
+
+// Abrir modal para crear nueva tarea
+function openNewTaskModal() {
+  editingTaskId = null;
+  taskImages = [];
+  
+  document.getElementById('taskModalTitle').textContent = 'Nueva Tarea';
+  document.getElementById('taskId').value = '';
+  document.getElementById('taskProjectId').value = '';
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskDescription').value = '';
+  document.getElementById('taskDueDate').value = '';
+  document.getElementById('taskCriticality').value = 'medium';
+  document.getElementById('taskStatus').value = 'pending';
+  
+  // Desmarcar todos los tags
+  document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  // Mostrar y cargar selectores de proyecto
+  if (taskProjectSelector) taskProjectSelector.style.display = 'block';
+  if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'block';
+  loadTaskModalProjects();
+  
+  renderImagePreviews();
+  resetMarkdownPreview();
+  taskModal.classList.add('active');
+}
+
+// Cargar proyectos principales en el select del modal
+function loadTaskModalProjects() {
+  if (!taskMainProject) return;
+  
+  const mainProjects = allProjects.filter(p => !p.parent_id);
+  taskMainProject.innerHTML = '<option value="">-- Seleccionar Proyecto --</option>';
+  mainProjects.forEach(project => {
+    const option = document.createElement('option');
+    option.value = project.id;
+    option.textContent = project.name;
+    taskMainProject.appendChild(option);
+  });
+  
+  // Limpiar subcategorías
+  if (taskSubProject) {
+    taskSubProject.innerHTML = '<option value="">-- Sin Subcategoría --</option>';
+  }
+}
+
+// Cargar subcategorías según el proyecto seleccionado en el modal
+function loadTaskSubProjects() {
+  if (!taskMainProject || !taskSubProject) return;
+  
+  const mainProjectId = parseInt(taskMainProject.value);
+  taskSubProject.innerHTML = '<option value="">-- Sin Subcategoría --</option>';
+  
+  if (mainProjectId) {
+    const subProjects = allProjects.filter(p => p.parent_id === mainProjectId);
+    subProjects.forEach(project => {
+      const option = document.createElement('option');
+      option.value = project.id;
+      option.textContent = project.name;
+      taskSubProject.appendChild(option);
+    });
+  }
 }
 
 // Guardar cambios de tarea
@@ -636,8 +736,25 @@ async function handleTaskSubmit(e) {
   const selectedTags = Array.from(document.querySelectorAll('input[name="taskTag"]:checked'))
     .map(cb => cb.value);
 
+  // Determinar el project_id
+  let projectId;
+  if (editingTaskId) {
+    // Modo edición: usar el proyecto existente
+    projectId = document.getElementById('taskProjectId').value;
+  } else {
+    // Modo creación: obtener del selector
+    const subProjectId = taskSubProject?.value;
+    const mainProjectId = taskMainProject?.value;
+    projectId = subProjectId || mainProjectId;
+    
+    if (!projectId) {
+      alert('Por favor selecciona un proyecto');
+      return;
+    }
+  }
+
   const taskData = {
-    project_id: document.getElementById('taskProjectId').value,
+    project_id: projectId,
     title: document.getElementById('taskTitle').value,
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
@@ -648,7 +765,13 @@ async function handleTaskSubmit(e) {
   };
 
   try {
-    await window.api.updateTask(editingTaskId, taskData);
+    if (editingTaskId) {
+      // Actualizar tarea existente
+      await window.api.updateTask(editingTaskId, taskData);
+    } else {
+      // Crear nueva tarea
+      await window.api.createTask(taskData);
+    }
     taskModal.classList.remove('active');
     await loadTasks();
   } catch (error) {

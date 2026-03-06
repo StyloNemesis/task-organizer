@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const Database = require('./src/database/db');
 
@@ -31,6 +31,12 @@ function createWindow() {
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Interceptar navegación y abrir enlaces externos en el navegador
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -117,4 +123,9 @@ ipcMain.handle('update-note', async (event, id, note) => {
 
 ipcMain.handle('delete-note', async (event, id) => {
   return db.deleteNote(id);
+});
+
+// IPC Handler para abrir enlaces externos
+ipcMain.handle('open-external', async (event, url) => {
+  shell.openExternal(url);
 });

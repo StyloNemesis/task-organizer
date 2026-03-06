@@ -15,6 +15,10 @@
           <span class="icon">${ICONS.dashboard}</span>
           Dashboard
         </a>
+        <a href="kanban.html" class="nav-link ${currentPage === 'kanban.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.kanban}</span>
+          Kanban
+        </a>
         <a href="projects.html" class="nav-link ${currentPage === 'projects.html' ? 'active' : ''}">
           <span class="icon">${ICONS.folder}</span>
           Proyectos
@@ -44,12 +48,7 @@
   function loadSidebarFooter() {
     const footer = document.getElementById('sidebarFooter');
     
-    if (currentPage === 'projects.html') {
-      footer.innerHTML = `
-        <button class="btn btn-primary btn-block" id="newProjectBtn">
-          + Nuevo Proyecto
-        </button>
-      `;
-    }
+    // Footer vacío - los botones de acción están en el header
+    footer.innerHTML = '';
   }
 })();

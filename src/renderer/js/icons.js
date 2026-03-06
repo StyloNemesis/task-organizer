@@ -63,6 +63,12 @@ const ICONS = {
   
   folder: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M18.3333 15.8334C18.3333 16.2754 18.1577 16.6993 17.8452 17.0119C17.5326 17.3244 17.1087 17.5 16.6667 17.5H3.33333C2.89131 17.5 2.46738 17.3244 2.15482 17.0119C1.84226 16.6993 1.66667 16.2754 1.66667 15.8334V4.16671C1.66667 3.72468 1.84226 3.30076 2.15482 2.9882C2.46738 2.67564 2.89131 2.50004 3.33333 2.50004H7.5L9.16667 5.00004H16.6667C17.1087 5.00004 17.5326 5.17564 17.8452 5.4882C18.1577 5.80076 18.3333 6.22468 18.3333 6.66671V15.8334Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  
+  kanban: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <rect x="8" y="2" width="4" height="11" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <rect x="14" y="2" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
   </svg>`
 };
 
