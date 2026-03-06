@@ -29,20 +29,33 @@ jobs:
         id: set_version
         run: |
           echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
-          npm version ${{ inputs.version }} --no-git-tag-version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          if [ "$CURRENT_VERSION" != "${{ inputs.version }}" ]; then
+            npm version ${{ inputs.version }} --no-git-tag-version
+          else
+            echo "Version already set to ${{ inputs.version }}"
+          fi
 
       - name: Commit version change
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add package.json package-lock.json
-          git commit -m "chore: bump version to ${{ inputs.version }}"
-          git push
+          if git diff --quiet package.json package-lock.json; then
+            echo "No version changes to commit"
+          else
+            git add package.json package-lock.json
+            git commit -m "chore: bump version to ${{ inputs.version }}"
+            git push
+          fi
 
       - name: Create Git Tag
         run: |
-          git tag v${{ inputs.version }}
-          git push origin v${{ inputs.version }}
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "Tag v${{ inputs.version }} already exists"
+          else
+            git tag v${{ inputs.version }}
+            git push origin v${{ inputs.version }}
+          fi
 
       - name: Create Release
         id: create_release
