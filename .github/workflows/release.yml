@@ -8,9 +8,14 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.set_version.outputs.version }}
@@ -19,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -50,8 +57,9 @@ jobs:
 
       - name: Create Git Tag
         run: |
-          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
-            echo "Tag v${{ inputs.version }} already exists"
+          if git ls-remote --tags origin | grep -q "refs/tags/v${{ inputs.version }}"; then
+            echo "Tag v${{ inputs.version }} already exists remotely"
+            git fetch --tags
           else
             git tag v${{ inputs.version }}
             git push origin v${{ inputs.version }}
@@ -59,16 +67,18 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ inputs.version }}
-          release_name: Task Organizer v${{ inputs.version }}
-          draft: false
-          prerelease: false
-          body: |
-            ## Task Organizer v${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Verificar si la release ya existe
+          if gh release view "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "Release v${{ inputs.version }} already exists"
+            UPLOAD_URL=$(gh api repos/${{ github.repository }}/releases/tags/v${{ inputs.version }} --jq '.upload_url')
+          else
+            # Crear la release
+            gh release create "v${{ inputs.version }}" \
+              --title "Task Organizer v${{ inputs.version }}" \
+              --notes "## Task Organizer v${{ inputs.version }}
             
             ### 📦 Instaladores Disponibles
             
@@ -87,7 +97,12 @@ jobs:
             
             ### 📝 Cambios
             
-            _Edita esta sección para agregar las notas de la versión_
+            _Edita esta sección para agregar las notas de la versión_"
+            
+            UPLOAD_URL=$(gh api repos/${{ github.repository }}/releases/tags/v${{ inputs.version }} --jq '.upload_url')
+          fi
+          
+          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
 
   build-linux:
     needs: create-release
@@ -109,36 +124,30 @@ jobs:
       - name: Build Linux
         run: npm run build:linux:all
 
-      - name: Upload AppImage
-        uses: actions/upload-release-asset@v1
+      - name: Upload Linux Artifacts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./installers/Task Organizer-${{ needs.create-release.outputs.version }}.AppImage
-          asset_name: Task-Organizer-${{ needs.create-release.outputs.version }}.AppImage
-          asset_content_type: application/octet-stream
-
-      - name: Upload DEB
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./installers/task-organizer_${{ needs.create-release.outputs.version }}_amd64.deb
-          asset_name: task-organizer_${{ needs.create-release.outputs.version }}_amd64.deb
-          asset_content_type: application/vnd.debian.binary-package
-
-      - name: Upload RPM (if exists)
-        continue-on-error: true
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./installers/task-organizer-${{ needs.create-release.outputs.version }}.x86_64.rpm
-          asset_name: task-organizer-${{ needs.create-release.outputs.version }}.x86_64.rpm
-          asset_content_type: application/x-rpm
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Subir AppImage
+          if [ -f "installers/Task Organizer-${{ needs.create-release.outputs.version }}.AppImage" ]; then
+            gh release upload "v${{ needs.create-release.outputs.version }}" \
+              "installers/Task Organizer-${{ needs.create-release.outputs.version }}.AppImage" \
+              --clobber
+          fi
+          
+          # Subir DEB
+          if [ -f "installers/task-organizer_${{ needs.create-release.outputs.version }}_amd64.deb" ]; then
+            gh release upload "v${{ needs.create-release.outputs.version }}" \
+              "installers/task-organizer_${{ needs.create-release.outputs.version }}_amd64.deb" \
+              --clobber
+          fi
+          
+          # Subir RPM (si existe)
+          if [ -f "installers/task-organizer-${{ needs.create-release.outputs.version }}.x86_64.rpm" ]; then
+            gh release upload "v${{ needs.create-release.outputs.version }}" \
+              "installers/task-organizer-${{ needs.create-release.outputs.version }}.x86_64.rpm" \
+              --clobber
+          fi
 
   build-windows:
     needs: create-release
@@ -160,43 +169,24 @@ jobs:
       - name: Build Windows
         run: npm run build:win
 
-      - name: Find Setup file
-        id: find_setup
+      - name: Upload Windows Artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          SETUP_FILE=$(ls installers/*Setup*.exe 2>/dev/null | head -1)
-          echo "setup_file=$SETUP_FILE" >> $GITHUB_OUTPUT
-          echo "Setup file: $SETUP_FILE"
-
-      - name: Find Portable file
-        id: find_portable
-        shell: bash
-        run: |
-          PORTABLE_FILE=$(ls installers/*.exe 2>/dev/null | grep -v "Setup" | head -1)
-          echo "portable_file=$PORTABLE_FILE" >> $GITHUB_OUTPUT
-          echo "Portable file: $PORTABLE_FILE"
-
-      - name: Upload Windows Setup
-        if: steps.find_setup.outputs.setup_file != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_setup.outputs.setup_file }}
-          asset_name: Task-Organizer-Setup-${{ needs.create-release.outputs.version }}.exe
-          asset_content_type: application/x-msdownload
-
-      - name: Upload Windows Portable
-        if: steps.find_portable.outputs.portable_file != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_portable.outputs.portable_file }}
-          asset_name: Task-Organizer-Portable-${{ needs.create-release.outputs.version }}.exe
-          asset_content_type: application/x-msdownload
+          # Buscar y subir Setup
+          SETUP_FILE=$(find installers -name "*Setup*.exe" -type f 2>/dev/null | head -1)
+          if [ -n "$SETUP_FILE" ]; then
+            echo "Uploading: $SETUP_FILE"
+            gh release upload "v${{ needs.create-release.outputs.version }}" "$SETUP_FILE" --clobber
+          fi
+          
+          # Buscar y subir Portable
+          PORTABLE_FILE=$(find installers -name "*.exe" -type f ! -name "*Setup*" 2>/dev/null | head -1)
+          if [ -n "$PORTABLE_FILE" ]; then
+            echo "Uploading: $PORTABLE_FILE"
+            gh release upload "v${{ needs.create-release.outputs.version }}" "$PORTABLE_FILE" --clobber
+          fi
 
   build-macos:
     needs: create-release
@@ -218,38 +208,20 @@ jobs:
       - name: Build macOS
         run: npm run build:mac
 
-      - name: Find DMG file
-        id: find_dmg
-        run: |
-          DMG_FILE=$(ls installers/*.dmg 2>/dev/null | head -1)
-          echo "dmg_file=$DMG_FILE" >> $GITHUB_OUTPUT
-          echo "DMG file: $DMG_FILE"
-
-      - name: Find ZIP file
-        id: find_zip
-        run: |
-          ZIP_FILE=$(ls installers/*.zip 2>/dev/null | head -1)
-          echo "zip_file=$ZIP_FILE" >> $GITHUB_OUTPUT
-          echo "ZIP file: $ZIP_FILE"
-
-      - name: Upload macOS DMG
-        if: steps.find_dmg.outputs.dmg_file != ''
-        uses: actions/upload-release-asset@v1
+      - name: Upload macOS Artifacts
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_dmg.outputs.dmg_file }}
-          asset_name: Task-Organizer-${{ needs.create-release.outputs.version }}.dmg
-          asset_content_type: application/x-apple-diskimage
-
-      - name: Upload macOS ZIP
-        if: steps.find_zip.outputs.zip_file != ''
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ steps.find_zip.outputs.zip_file }}
-          asset_name: Task-Organizer-${{ needs.create-release.outputs.version }}-mac.zip
-          asset_content_type: application/zip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Buscar y subir DMG
+          DMG_FILE=$(find installers -name "*.dmg" -type f 2>/dev/null | head -1)
+          if [ -n "$DMG_FILE" ]; then
+            echo "Uploading: $DMG_FILE"
+            gh release upload "v${{ needs.create-release.outputs.version }}" "$DMG_FILE" --clobber
+          fi
+          
+          # Buscar y subir ZIP
+          ZIP_FILE=$(find installers -name "*.zip" -type f 2>/dev/null | head -1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Uploading: $ZIP_FILE"
+            gh release upload "v${{ needs.create-release.outputs.version }}" "$ZIP_FILE" --clobber
+          fi
