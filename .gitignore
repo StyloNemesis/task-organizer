@@ -5,3 +5,28 @@ dist/
 *.log
 .env
 uploads/
+
+# Electron Builder - Los instaladores se generan en GitHub Actions
+# No versionamos binarios en Git, se distribuyen mediante GitHub Releases
+installers/linux-unpacked/
+installers/win-unpacked/
+installers/win-ia32-unpacked/
+installers/mac/
+installers/mac-arm64/
+
+# Instaladores compilados (generados en CI/CD)
+installers/*.AppImage
+installers/*.deb
+installers/*.rpm
+installers/*.exe
+installers/*.dmg
+installers/*.zip
+installers/*.tar.gz
+
+# Archivos de configuración y metadatos de build
+installers/*.blockmap
+installers/*.yaml
+installers/*.yml
+
+# Mantener solo README.md para documentación
+!installers/README.md
