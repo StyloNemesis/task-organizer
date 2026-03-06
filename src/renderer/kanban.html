@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tablero Kanban - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2>Tablero Kanban</h2>
+        <div class="header-actions">
+          <select id="filterMainProject" class="form-control">
+            <option value="">Todos los proyectos</option>
+          </select>
+          <select id="filterSubProject" class="form-control">
+            <option value="">Todas las subcategorías</option>
+          </select>
+          <input type="search" id="searchTasks" placeholder="Buscar tareas..." class="search-input">
+        </div>
+      </header>
+
+      <div class="content-body">
+        <!-- Tablero Kanban -->
+        <div class="kanban-board" id="kanbanBoard">
+          <div class="kanban-column" data-status="pending">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="pending"></span>
+              <h3>Pendiente</h3>
+              <span class="kanban-column-count" id="count-pending">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-pending">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="in_progress">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="inProgress"></span>
+              <h3>En Curso</h3>
+              <span class="kanban-column-count" id="count-in_progress">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-in_progress">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="testing">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="testing"></span>
+              <h3>Testing</h3>
+              <span class="kanban-column-count" id="count-testing">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-testing">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="completed">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="completed"></span>
+              <h3>Completada</h3>
+              <span class="kanban-column-count" id="count-completed">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-completed">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal para editar tarea -->
+  <div id="taskModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="taskModalTitle">Editar Tarea</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="taskForm">
+          <input type="hidden" id="taskId">
+          <input type="hidden" id="taskProjectId">
+          
+          <div class="form-group">
+            <label for="taskTitle">Título</label>
+            <input type="text" id="taskTitle" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="taskDescription">
+              Descripción (Markdown soportado)
+              <button type="button" class="btn btn-sm btn-secondary" id="toggleTaskPreview" style="float: right;">Vista previa</button>
+            </label>
+            <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+            <div id="taskDescriptionPreview" class="markdown-preview markdown-content" style="display: none;"></div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taskDueDate">Fecha de Ejecución</label>
+              <input type="date" id="taskDueDate" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="taskCriticality">Criticidad</label>
+              <select id="taskCriticality" class="form-control">
+                <option value="low">Baja</option>
+                <option value="medium" selected>Media</option>
+                <option value="high">Alta</option>
+                <option value="critical">Crítica</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskStatus">Estado</label>
+            <select id="taskStatus" class="form-control">
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En Curso</option>
+              <option value="testing">Testing</option>
+              <option value="completed">Completada</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Tags</label>
+            <div class="tags-selector" id="tagsSelector">
+              <!-- Los tags se cargarán dinámicamente -->
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Imágenes</label>
+            <div class="image-upload-area" id="imageUploadArea">
+              <input type="file" id="taskImages" accept="image/*" multiple style="display: none;">
+              <button type="button" class="btn btn-secondary" id="addImageBtn">+ Añadir Imágenes</button>
+              <div class="images-preview" id="imagesPreview"></div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary modal-close-btn">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para visualizar tarea (solo lectura) -->
+  <div id="taskViewModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h3 id="taskViewTitle">Detalles de la Tarea</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <div>
+            <h4 id="viewTaskTitle" style="margin: 0; color: var(--text-primary);"></h4>
+          </div>
+          
+          <div id="viewTaskDescriptionContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Descripción</label>
+            <div id="viewTaskDescription" class="markdown-content" style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; border: 1px solid var(--border-color);"></div>
+          </div>
+          
+          <div class="form-row">
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Estado</label>
+              <span id="viewTaskStatus"></span>
+            </div>
+            
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Criticidad</label>
+              <span id="viewTaskCriticality"></span>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div>
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Proyecto</label>
+              <span id="viewTaskProject"></span>
+            </div>
+            
+            <div id="viewTaskSubprojectContainer" style="display: none;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Subcategoría</label>
+              <span id="viewTaskSubproject"></span>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <div id="viewTaskCreatedContainer">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Fecha de Creación</label>
+              <span id="viewTaskCreated"></span>
+            </div>
+            
+            <div id="viewTaskDueDateContainer" style="display: none;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Fecha de Ejecución</label>
+              <span id="viewTaskDueDate"></span>
+            </div>
+          </div>
+          
+          <div id="viewTaskTagsContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Tags</label>
+            <div id="viewTaskTags" style="display: flex; gap: 0.5rem; flex-wrap: wrap;"></div>
+          </div>
+          
+          <div id="viewTaskImagesContainer" style="display: none;">
+            <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Imágenes</label>
+            <div id="viewTaskImages" class="task-images"></div>
+          </div>
+        </div>
+        
+        <div class="form-actions" style="margin-top: 1.5rem;">
+          <button type="button" class="btn btn-secondary modal-close-btn">Cerrar</button>
+          <button type="button" class="btn btn-secondary" id="goToProjectBtn">Ir al Proyecto</button>
+          <button type="button" class="btn btn-primary" id="editFromViewBtn">Editar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/modal-resize.js"></script>
+  <script src="js/kanban.js"></script>
+</body>
+</html>
