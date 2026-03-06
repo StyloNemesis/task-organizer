@@ -19,6 +19,13 @@ const taskForm = document.getElementById('taskForm');
 const addImageBtn = document.getElementById('addImageBtn');
 const taskImagesInput = document.getElementById('taskImages');
 const imagesPreview = document.getElementById('imagesPreview');
+const newTaskBtn = document.getElementById('newTaskBtn');
+
+// Elementos de selectores de proyecto en el modal
+const taskProjectSelector = document.getElementById('taskProjectSelector');
+const taskSubProjectSelector = document.getElementById('taskSubProjectSelector');
+const taskMainProject = document.getElementById('taskMainProject');
+const taskSubProject = document.getElementById('taskSubProject');
 
 // Modal de visualización
 const taskViewModal = document.getElementById('taskViewModal');
@@ -101,6 +108,12 @@ searchTasks.addEventListener('input', applyFilters);
 if (taskForm) taskForm.addEventListener('submit', handleTaskSubmit);
 if (addImageBtn) addImageBtn.addEventListener('click', () => taskImagesInput.click());
 if (taskImagesInput) taskImagesInput.addEventListener('change', handleImageSelect);
+if (newTaskBtn) newTaskBtn.addEventListener('click', openNewTaskModal);
+
+// Event listener para cambio de proyecto principal en el modal
+if (taskMainProject) {
+  taskMainProject.addEventListener('change', loadTaskSubProjects);
+}
 
 // Event listeners del modal de visualización
 document.querySelectorAll('.modal-close, .modal-close-btn').forEach(btn => {
@@ -483,9 +496,79 @@ async function editTask(id) {
     cb.checked = taskTags.includes(cb.value);
   });
   
+  // Ocultar selectores de proyecto (modo edición)
+  if (taskProjectSelector) taskProjectSelector.style.display = 'none';
+  if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'none';
+  
   renderImagePreviews();
   resetMarkdownPreview();
   taskModal.classList.add('active');
+}
+
+// Abrir modal para crear nueva tarea
+function openNewTaskModal() {
+  editingTaskId = null;
+  taskImages = [];
+  
+  document.getElementById('taskModalTitle').textContent = 'Nueva Tarea';
+  document.getElementById('taskId').value = '';
+  document.getElementById('taskProjectId').value = '';
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskDescription').value = '';
+  document.getElementById('taskDueDate').value = '';
+  document.getElementById('taskCriticality').value = 'medium';
+  document.getElementById('taskStatus').value = 'pending';
+  
+  // Desmarcar todos los tags
+  document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
+    cb.checked = false;
+  });
+  
+  // Mostrar y cargar selectores de proyecto
+  if (taskProjectSelector) taskProjectSelector.style.display = 'block';
+  if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'block';
+  loadTaskModalProjects();
+  
+  renderImagePreviews();
+  resetMarkdownPreview();
+  taskModal.classList.add('active');
+}
+
+// Cargar proyectos principales en el select del modal
+function loadTaskModalProjects() {
+  if (!taskMainProject) return;
+  
+  const mainProjects = allProjects.filter(p => !p.parent_id);
+  taskMainProject.innerHTML = '<option value="">-- Seleccionar Proyecto --</option>';
+  mainProjects.forEach(project => {
+    const option = document.createElement('option');
+    option.value = project.id;
+    option.textContent = project.name;
+    taskMainProject.appendChild(option);
+  });
+  
+  // Limpiar subcategorías
+  if (taskSubProject) {
+    taskSubProject.innerHTML = '<option value="">-- Sin Subcategoría --</option>';
+  }
+}
+
+// Cargar subcategorías según el proyecto seleccionado en el modal
+function loadTaskSubProjects() {
+  if (!taskMainProject || !taskSubProject) return;
+  
+  const mainProjectId = parseInt(taskMainProject.value);
+  taskSubProject.innerHTML = '<option value="">-- Sin Subcategoría --</option>';
+  
+  if (mainProjectId) {
+    const subProjects = allProjects.filter(p => p.parent_id === mainProjectId);
+    subProjects.forEach(project => {
+      const option = document.createElement('option');
+      option.value = project.id;
+      option.textContent = project.name;
+      taskSubProject.appendChild(option);
+    });
+  }
 }
 
 // Guardar cambios de tarea
@@ -496,8 +579,26 @@ async function handleTaskSubmit(e) {
   const selectedTags = Array.from(document.querySelectorAll('input[name="taskTag"]:checked'))
     .map(cb => cb.value);
 
+  let projectId;
+  
+  // Modo creación: obtener proyecto de los selectores
+  if (!editingTaskId) {
+    const mainProjectId = taskMainProject?.value;
+    const subProjectId = taskSubProject?.value;
+    
+    if (!mainProjectId) {
+      alert('Por favor selecciona un proyecto');
+      return;
+    }
+    
+    projectId = subProjectId || mainProjectId;
+  } else {
+    // Modo edición: usar el project_id existente
+    projectId = document.getElementById('taskProjectId').value;
+  }
+
   const taskData = {
-    project_id: document.getElementById('taskProjectId').value,
+    project_id: projectId,
     title: document.getElementById('taskTitle').value,
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
@@ -508,7 +609,14 @@ async function handleTaskSubmit(e) {
   };
 
   try {
-    await window.api.updateTask(editingTaskId, taskData);
+    if (editingTaskId) {
+      // Modo edición
+      await window.api.updateTask(editingTaskId, taskData);
+    } else {
+      // Modo creación
+      await window.api.createTask(taskData);
+    }
+    
     taskModal.classList.remove('active');
     await loadTasks();
   } catch (error) {
