@@ -119,6 +119,16 @@ if (taskViewModal) {
   });
 }
 
+// Image viewer modal close on background click
+const imageViewerModal = document.getElementById('imageViewerModal');
+if (imageViewerModal) {
+  imageViewerModal.addEventListener('click', (e) => {
+    if (e.target === imageViewerModal && !window.shouldPreventModalClose?.()) {
+      imageViewerModal.classList.remove('active');
+    }
+  });
+}
+
 sortableHeaders.forEach(header => {
   header.addEventListener('click', () => {
     const column = header.dataset.column;
@@ -532,7 +542,7 @@ function viewTask(taskId) {
   const images = task.images ? JSON.parse(task.images) : [];
   if (images.length > 0) {
     document.getElementById('viewTaskImages').innerHTML = images.map(img => 
-      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="window.open('${img}', '_blank')">`
+      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="viewImage('${img}')">`
     ).join('');
     imagesContainer.style.display = 'block';
   } else {
@@ -541,6 +551,13 @@ function viewTask(taskId) {
   
   // Abrir modal
   taskViewModal.classList.add('active');
+}
+
+function viewImage(src) {
+  const modal = document.getElementById('imageViewerModal');
+  const img = document.getElementById('imageViewerImg');
+  img.src = src;
+  modal.classList.add('active');
 }
 
 async function deleteTask(id) {

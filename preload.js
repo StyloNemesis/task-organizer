@@ -21,5 +21,8 @@ contextBridge.exposeInMainWorld('api', {
   getNotes: (projectId) => ipcRenderer.invoke('get-notes', projectId),
   createNote: (note) => ipcRenderer.invoke('create-note', note),
   updateNote: (id, note) => ipcRenderer.invoke('update-note', id, note),
-  deleteNote: (id) => ipcRenderer.invoke('delete-note', id)
+  deleteNote: (id) => ipcRenderer.invoke('delete-note', id),
+  
+  // Abrir enlaces externos
+  openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

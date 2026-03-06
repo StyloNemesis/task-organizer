@@ -112,24 +112,26 @@ document.querySelectorAll('.modal-close, .modal-close-btn').forEach(btn => {
 
 // Cerrar modal al hacer clic fuera de él
 taskModal.addEventListener('click', function(e) {
-  if (e.target === taskModal) {
+  if (e.target === taskModal && !window.shouldPreventModalClose?.()) {
     taskModal.classList.remove('active');
   }
 });
 
 taskViewModal.addEventListener('click', function(e) {
-  if (e.target === taskViewModal) {
+  if (e.target === taskViewModal && !window.shouldPreventModalClose?.()) {
     taskViewModal.classList.remove('active');
   }
 });
 
-// Cerrar modal con la tecla Escape
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    taskModal.classList.remove('active');
-    taskViewModal.classList.remove('active');
-  }
-});
+// Image viewer modal close on background click
+const imageViewerModal = document.getElementById('imageViewerModal');
+if (imageViewerModal) {
+  imageViewerModal.addEventListener('click', (e) => {
+    if (e.target === imageViewerModal && !window.shouldPreventModalClose?.()) {
+      imageViewerModal.classList.remove('active');
+    }
+  });
+}
 
 // Inicializar la aplicación
 async function init() {
@@ -440,7 +442,7 @@ function viewTask(taskId) {
   const images = task.images ? JSON.parse(task.images) : [];
   if (images.length > 0) {
     document.getElementById('viewTaskImages').innerHTML = images.map(img => 
-      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="window.open('${img}', '_blank')">`
+      `<img src="${img}" alt="Task image" class="task-image" style="max-width: 200px; max-height: 200px; object-fit: cover; border-radius: 0.5rem; cursor: pointer;" onclick="viewImage('${img}')">`
     ).join('');
     imagesContainer.style.display = 'block';
   } else {
@@ -449,6 +451,13 @@ function viewTask(taskId) {
   
   // Abrir modal
   taskViewModal.classList.add('active');
+}
+
+function viewImage(src) {
+  const modal = document.getElementById('imageViewerModal');
+  const img = document.getElementById('imageViewerImg');
+  img.src = src;
+  modal.classList.add('active');
 }
 
 // Editar tarea
