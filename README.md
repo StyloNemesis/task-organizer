@@ -180,10 +180,10 @@ Lenguajes soportados: JavaScript, Python, SQL, HTML, CSS, Java, C++, JSON, Bash,
 
 ## Próximas Mejoras
 
-- [ ] Empaquetar la aplicación para distribución
+- [x] Empaquetar la aplicación para distribución
 - [x] Soporte Markdown para la descripción de las tareas
 - [x] Syntax highlighting para bloques de código
-- [ ] Tablero Kanban
+- [x] Tablero Kanban
 - [ ] Vista tareas de ejecución del día actual
 - [ ] Temas personalizables (modo oscuro/claro)
 - [ ] Adjuntar archivos además de imágenes
