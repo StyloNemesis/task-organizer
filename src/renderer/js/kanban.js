@@ -229,21 +229,22 @@ function renderKanbanCard(task) {
   const projectName = task.parent_project_name || task.project_name || 'Sin proyecto';
   const subprojectName = task.parent_project_name ? task.project_name : '';
   const tags = task.tags ? JSON.parse(task.tags) : [];
-  const criticalityClass = getCriticalityClass(task.criticality);
+  const criticality = task.criticality || 'medium';
   
   return `
     <div 
-      class="kanban-card ${criticalityClass}" 
+      class="kanban-card" 
       draggable="true" 
       data-task-id="${task.id}"
       onclick="viewTask(${task.id})"
+      style="border-left: 3px solid ${projectColor};"
     >
       <div class="kanban-card-header">
         <div class="kanban-card-project">
           <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${projectColor}; display: inline-block;"></span>
           <span class="kanban-card-project-name">${escapeHtml(projectName)}</span>
         </div>
-        ${task.criticality === 'critical' ? '<span class="kanban-card-critical">⚠️</span>' : ''}
+        <span class="badge badge-${criticality}">${getCriticalityText(criticality)}</span>
       </div>
       
       <h4 class="kanban-card-title">${escapeHtml(task.title)}</h4>
@@ -573,12 +574,7 @@ function getCriticalityText(criticality) {
   return texts[criticality] || 'Media';
 }
 
-function getCriticalityClass(criticality) {
-  if (criticality === 'critical' || criticality === 'high') {
-    return 'kanban-card-high-priority';
-  }
-  return '';
-}
+
 
 function formatDate(dateString) {
   const date = new Date(dateString);
