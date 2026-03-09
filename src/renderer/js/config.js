@@ -8,7 +8,8 @@ const AVAILABLE_TAGS = [
   'Pruebas',
   'Documentación',
   'Despliegue',
-  'Info'
+  'Info',
+  'Bug'
 ];
 
 // Exportar para uso en otros archivos
