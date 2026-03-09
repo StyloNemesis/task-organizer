@@ -16,6 +16,12 @@ const imagesPreview = document.getElementById('imagesPreview');
 const projectTitleEl = document.getElementById('projectTitle');
 const editFromViewBtn = document.getElementById('editFromViewBtn');
 
+// Elementos de selectores de proyecto en el modal
+const taskProjectSelector = document.getElementById('taskProjectSelector');
+const taskSubProjectSelector = document.getElementById('taskSubProjectSelector');
+const taskMainProject = document.getElementById('taskMainProject');
+const taskSubProject = document.getElementById('taskSubProject');
+
 // Tabs
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
@@ -393,6 +399,22 @@ function openNewTaskModal() {
   document.getElementById('taskCriticality').value = 'medium';
   document.getElementById('taskStatus').value = 'pending';
   
+  // Establecer el proyecto actual en el campo oculto
+  document.getElementById('taskProjectId').value = currentProjectId;
+  
+  // Ocultar selectores de proyecto ya que estamos en un proyecto específico
+  if (taskProjectSelector) {
+    taskProjectSelector.style.display = 'none';
+  }
+  if (taskSubProjectSelector) {
+    taskSubProjectSelector.style.display = 'none';
+  }
+  
+  // Remover el atributo required del select cuando está oculto
+  if (taskMainProject) {
+    taskMainProject.removeAttribute('required');
+  }
+  
   // Desmarcar todos los tags
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => cb.checked = false);
   
@@ -411,6 +433,7 @@ async function editTask(id) {
   
   document.getElementById('taskModalTitle').textContent = 'Editar Tarea';
   document.getElementById('taskId').value = task.id;
+  document.getElementById('taskProjectId').value = task.project_id;
   document.getElementById('taskTitle').value = task.title;
   document.getElementById('taskDescription').value = task.description || '';
   document.getElementById('taskDueDate').value = task.due_date || '';
@@ -421,6 +444,19 @@ async function editTask(id) {
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
     cb.checked = taskTags.includes(cb.value);
   });
+  
+  // Ocultar selectores de proyecto (modo edición)
+  if (taskProjectSelector) {
+    taskProjectSelector.style.display = 'none';
+  }
+  if (taskSubProjectSelector) {
+    taskSubProjectSelector.style.display = 'none';
+  }
+  
+  // Remover el atributo required del select cuando está oculto
+  if (taskMainProject) {
+    taskMainProject.removeAttribute('required');
+  }
   
   renderImagePreviews();
   resetMarkdownPreview();
@@ -434,8 +470,11 @@ async function handleTaskSubmit(e) {
   const selectedTags = Array.from(document.querySelectorAll('input[name="taskTag"]:checked'))
     .map(cb => cb.value);
 
+  // Obtener el project_id del campo oculto (establecido al abrir el modal)
+  const projectId = document.getElementById('taskProjectId').value || currentProjectId;
+
   const taskData = {
-    project_id: currentProjectId,
+    project_id: projectId,
     title: document.getElementById('taskTitle').value,
     description: document.getElementById('taskDescription').value,
     due_date: document.getElementById('taskDueDate').value || null,
