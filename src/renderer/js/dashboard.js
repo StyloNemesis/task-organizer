@@ -657,6 +657,11 @@ async function editTask(id) {
   if (taskProjectSelector) taskProjectSelector.style.display = 'none';
   if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'none';
   
+  // Remover el atributo required del select cuando está oculto
+  if (taskMainProject) {
+    taskMainProject.removeAttribute('required');
+  }
+  
   renderImagePreviews();
   resetMarkdownPreview();
   taskModal.classList.add('active');
@@ -684,10 +689,17 @@ function openNewTaskModal() {
   // Mostrar y cargar selectores de proyecto
   if (taskProjectSelector) taskProjectSelector.style.display = 'block';
   if (taskSubProjectSelector) taskSubProjectSelector.style.display = 'block';
+  
+  // Restaurar el atributo required del select cuando está visible
+  if (taskMainProject) {
+    taskMainProject.setAttribute('required', 'required');
+  }
+  
   loadTaskModalProjects();
   
   renderImagePreviews();
   resetMarkdownPreview();
+  taskModal.classList.add('active');
   taskModal.classList.add('active');
 }
 
