@@ -23,13 +23,69 @@
             <option value="">Todas las subcategorías</option>
           </select>
           <input type="search" id="searchTasks" placeholder="Buscar tareas..." class="search-input">
-          <button class="btn btn-primary" id="newTaskBtn" style="margin-left: auto;">+ Nueva Tarea</button>
+          <button class="btn btn-danger" id="deleteCompletedBtn" title="Eliminar todas las tareas completadas"></button>
+          <button class="btn btn-primary" id="newTaskBtn">+ Nueva Tarea</button>
         </div>
       </header>
 
-      <div class="content-body">
-        <!-- Tablero Kanban -->
-        <div class="kanban-board" id="kanbanBoard">
+      <div class="content-body kanban-double-layout">
+        <!-- Tablero Favoritas -->
+        <div class="kanban-section">
+          <div class="kanban-section-header">
+            <span class="kanban-section-icon" id="favSectionIcon"></span>
+            <h3>Tareas Destacadas</h3>
+          </div>
+          <div class="kanban-board" id="kanbanBoardFav">
+            <div class="kanban-column" data-status="pending">
+              <div class="kanban-column-header">
+                <span class="kanban-column-icon" data-icon="pending"></span>
+                <h3>Pendiente</h3>
+                <span class="kanban-column-count" id="count-fav-pending">0</span>
+              </div>
+              <div class="kanban-column-body" id="column-fav-pending"></div>
+            </div>
+            <div class="kanban-column" data-status="in_progress">
+              <div class="kanban-column-header">
+                <span class="kanban-column-icon" data-icon="inProgress"></span>
+                <h3>En Curso</h3>
+                <span class="kanban-column-count" id="count-fav-in_progress">0</span>
+              </div>
+              <div class="kanban-column-body" id="column-fav-in_progress"></div>
+            </div>
+            <div class="kanban-column" data-status="blocked">
+              <div class="kanban-column-header">
+                <span class="kanban-column-icon" data-icon="blocked"></span>
+                <h3>Bloqueado</h3>
+                <span class="kanban-column-count" id="count-fav-blocked">0</span>
+              </div>
+              <div class="kanban-column-body" id="column-fav-blocked"></div>
+            </div>
+            <div class="kanban-column" data-status="testing">
+              <div class="kanban-column-header">
+                <span class="kanban-column-icon" data-icon="testing"></span>
+                <h3>Testing</h3>
+                <span class="kanban-column-count" id="count-fav-testing">0</span>
+              </div>
+              <div class="kanban-column-body" id="column-fav-testing"></div>
+            </div>
+            <div class="kanban-column" data-status="completed">
+              <div class="kanban-column-header">
+                <span class="kanban-column-icon" data-icon="completed"></span>
+                <h3>Completada</h3>
+                <span class="kanban-column-count" id="count-fav-completed">0</span>
+              </div>
+              <div class="kanban-column-body" id="column-fav-completed"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tablero Todas las Tareas -->
+        <div class="kanban-section">
+          <div class="kanban-section-header">
+            <h3>Todas las Tareas</h3>
+          </div>
+          <!-- Tablero Kanban -->
+          <div class="kanban-board" id="kanbanBoard">
           <div class="kanban-column" data-status="pending">
             <div class="kanban-column-header">
               <span class="kanban-column-icon" data-icon="pending"></span>
@@ -48,6 +104,17 @@
               <span class="kanban-column-count" id="count-in_progress">0</span>
             </div>
             <div class="kanban-column-body" id="column-in_progress">
+              <!-- Tareas se cargarán aquí -->
+            </div>
+          </div>
+
+          <div class="kanban-column" data-status="blocked">
+            <div class="kanban-column-header">
+              <span class="kanban-column-icon" data-icon="blocked"></span>
+              <h3>Bloqueado</h3>
+              <span class="kanban-column-count" id="count-blocked">0</span>
+            </div>
+            <div class="kanban-column-body" id="column-blocked">
               <!-- Tareas se cargarán aquí -->
             </div>
           </div>
@@ -74,7 +141,8 @@
             </div>
           </div>
         </div>
-      </div>
+        </div><!-- /kanban-section all -->
+      </div><!-- /kanban-double-layout -->
     </main>
   </div>
 

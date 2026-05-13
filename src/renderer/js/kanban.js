@@ -20,6 +20,7 @@ const addImageBtn = document.getElementById('addImageBtn');
 const taskImagesInput = document.getElementById('taskImages');
 const imagesPreview = document.getElementById('imagesPreview');
 const newTaskBtn = document.getElementById('newTaskBtn');
+const deleteCompletedBtn = document.getElementById('deleteCompletedBtn');
 
 // Elementos de selectores de proyecto en el modal
 const taskProjectSelector = document.getElementById('taskProjectSelector');
@@ -66,6 +67,9 @@ document.addEventListener('DOMContentLoaded', function() {
   if (goToProjectBtn) {
     goToProjectBtn.innerHTML = `${ICONS.arrow} Ir al Proyecto`;
   }
+  if (deleteCompletedBtn) {
+    deleteCompletedBtn.innerHTML = `${ICONS.delete} Limpiar Completadas`;
+  }
   
   // Event listeners para botones del modal de visualización
   if (editFromViewBtn) {
@@ -95,6 +99,12 @@ function initColumnIcons() {
       iconEl.innerHTML = ICONS[iconName];
     }
   });
+
+  // Icono de estrella en la sección de favoritos
+  const favSectionIcon = document.getElementById('favSectionIcon');
+  if (favSectionIcon) {
+    favSectionIcon.innerHTML = ICONS.starFilled;
+  }
 }
 
 filterMainProject.addEventListener('change', function() {
@@ -109,6 +119,7 @@ if (taskForm) taskForm.addEventListener('submit', handleTaskSubmit);
 if (addImageBtn) addImageBtn.addEventListener('click', () => taskImagesInput.click());
 if (taskImagesInput) taskImagesInput.addEventListener('change', handleImageSelect);
 if (newTaskBtn) newTaskBtn.addEventListener('click', openNewTaskModal);
+if (deleteCompletedBtn) deleteCompletedBtn.addEventListener('click', deleteCompletedTasks);
 
 // Event listener para cambio de proyecto principal en el modal
 if (taskMainProject) {
@@ -193,6 +204,29 @@ async function loadTasks() {
   }
 }
 
+// Eliminar todas las tareas completadas
+async function deleteCompletedTasks() {
+  const completedTasks = allTasks.filter(t => t.status === 'completed');
+  
+  if (completedTasks.length === 0) {
+    alert('No hay tareas completadas para eliminar.');
+    return;
+  }
+  
+  const confirmed = confirm(`¿Estás seguro de que deseas eliminar ${completedTasks.length} tarea(s) completada(s)? Esta acción no se puede deshacer.`);
+  
+  if (!confirmed) return;
+  
+  try {
+    const result = await window.api.deleteCompletedTasks();
+    await loadTasks();
+    alert(`Se eliminaron ${result.deletedCount} tarea(s) completada(s) exitosamente.`);
+  } catch (error) {
+    console.error('Error al eliminar tareas completadas:', error);
+    alert('Hubo un error al eliminar las tareas completadas.');
+  }
+}
+
 // Aplicar filtros
 function applyFilters() {
   const mainProjectId = filterMainProject.value;
@@ -222,18 +256,29 @@ function applyFilters() {
 
 // Renderizar tablero Kanban
 function renderKanbanBoard() {
-  const statuses = ['pending', 'in_progress', 'testing', 'completed'];
-  
+  const statuses = ['pending', 'in_progress', 'blocked', 'testing', 'completed'];
+  const favoriteTasks = filteredTasks.filter(t => t.favorite === 1);
+
   statuses.forEach(status => {
+    // Tablero de favoritos
+    const favColumn = document.getElementById(`column-fav-${status}`);
+    const favCount = document.getElementById(`count-fav-${status}`);
+    if (favColumn && favCount) {
+      const favTasksInColumn = favoriteTasks.filter(t => (t.status || 'pending') === status);
+      favCount.textContent = favTasksInColumn.length;
+      favColumn.innerHTML = favTasksInColumn.map(task => renderKanbanCard(task)).join('');
+    }
+
+    // Tablero de todas las tareas
     const column = document.getElementById(`column-${status}`);
     const count = document.getElementById(`count-${status}`);
-    
-    const tasksInColumn = filteredTasks.filter(t => (t.status || 'pending') === status);
-    count.textContent = tasksInColumn.length;
-    
-    column.innerHTML = tasksInColumn.map(task => renderKanbanCard(task)).join('');
+    if (column && count) {
+      const tasksInColumn = filteredTasks.filter(t => (t.status || 'pending') === status);
+      count.textContent = tasksInColumn.length;
+      column.innerHTML = tasksInColumn.map(task => renderKanbanCard(task)).join('');
+    }
   });
-  
+
   // Configurar drag & drop
   setupDragAndDrop();
 }
@@ -245,6 +290,7 @@ function renderKanbanCard(task) {
   const subprojectName = task.parent_project_name ? task.project_name : '';
   const tags = task.tags ? JSON.parse(task.tags) : [];
   const criticality = task.criticality || 'medium';
+  const isFavorite = task.favorite === 1;
   
   return `
     <div 
@@ -259,7 +305,14 @@ function renderKanbanCard(task) {
           <span style="width: 8px; height: 8px; border-radius: 50%; background-color: ${projectColor}; display: inline-block;"></span>
           <span class="kanban-card-project-name">${escapeHtml(projectName)}</span>
         </div>
-        <span class="badge badge-${criticality}">${getCriticalityText(criticality)}</span>
+        <div style="display: flex; align-items: center; gap: 0.25rem;">
+          <button
+            class="kanban-favorite-btn ${isFavorite ? 'active' : ''}"
+            onclick="toggleFavorite(event, ${task.id})"
+            title="${isFavorite ? 'Quitar de destacadas' : 'Añadir a destacadas'}"
+          >${isFavorite ? ICONS.starFilled : ICONS.star}</button>
+          <span class="badge badge-${criticality}">${getCriticalityText(criticality)}</span>
+        </div>
       </div>
       
       <h4 class="kanban-card-title">${escapeHtml(task.title)}</h4>
@@ -290,21 +343,21 @@ function renderKanbanCard(task) {
 
 // Configurar drag & drop
 function setupDragAndDrop() {
-  const cards = document.querySelectorAll('.kanban-card');
-  const columns = document.querySelectorAll('.kanban-column-body');
-  
-  // Configurar eventos para las tarjetas
-  cards.forEach(card => {
+  // Las tarjetas se re-crean con innerHTML en cada render, siempre tienen listeners frescos
+  document.querySelectorAll('.kanban-card').forEach(card => {
     card.addEventListener('dragstart', handleDragStart);
     card.addEventListener('dragend', handleDragEnd);
   });
-  
-  // Configurar eventos para las columnas
-  columns.forEach(column => {
-    column.addEventListener('dragover', handleDragOver);
-    column.addEventListener('drop', handleDrop);
-    column.addEventListener('dragenter', handleDragEnter);
-    column.addEventListener('dragleave', handleDragLeave);
+
+  // Ambos tableros aceptan drops. data-drag-ready evita acumular listeners en cada render.
+  document.querySelectorAll('.kanban-column-body').forEach(column => {
+    if (!column.dataset.dragReady) {
+      column.dataset.dragReady = 'true';
+      column.addEventListener('dragover', handleDragOver);
+      column.addEventListener('drop', handleDrop);
+      column.addEventListener('dragenter', handleDragEnter);
+      column.addEventListener('dragleave', handleDragLeave);
+    }
   });
 }
 
@@ -320,6 +373,7 @@ function handleDragStart(e) {
 
 function handleDragEnd(e) {
   this.classList.remove('dragging');
+  draggedElement = null;
   
   // Remover clases de todas las columnas
   document.querySelectorAll('.kanban-column-body').forEach(column => {
@@ -349,24 +403,51 @@ function handleDragLeave(e) {
 async function handleDrop(e) {
   e.stopPropagation();
   e.preventDefault();
-  
-  this.classList.remove('drag-over');
-  
-  if (draggedElement) {
-    const taskId = parseInt(draggedElement.getAttribute('data-task-id'));
-    const newStatus = this.parentElement.getAttribute('data-status');
-    
-    // Actualizar el estado de la tarea
-    try {
-      await window.api.updateTaskStatus(taskId, newStatus);
-      await loadTasks();
-    } catch (error) {
-      console.error('Error al actualizar estado de tarea:', error);
-      alert('Error al actualizar el estado de la tarea');
-    }
+
+  // Guardar referencias locales ANTES de cualquier await
+  const columnBody = e.currentTarget;
+  const currentDragged = draggedElement;
+
+  columnBody.classList.remove('drag-over');
+
+  if (!currentDragged) return false;
+
+  const taskId = parseInt(currentDragged.getAttribute('data-task-id'));
+
+  // Subir por el DOM hasta encontrar el elemento con data-status
+  let statusEl = columnBody.parentElement;
+  while (statusEl && !statusEl.hasAttribute('data-status')) {
+    statusEl = statusEl.parentElement;
   }
-  
+  const newStatus = statusEl ? statusEl.getAttribute('data-status') : null;
+
+  if (isNaN(taskId) || !newStatus) {
+    console.error('Drop inválido - taskId:', taskId, 'newStatus:', newStatus);
+    return false;
+  }
+
+  draggedElement = null;
+
+  try {
+    await window.api.updateTaskStatus(taskId, newStatus);
+    await loadTasks();
+  } catch (error) {
+    console.error('Error al actualizar estado de tarea:', error);
+    alert('Error al actualizar el estado de la tarea');
+  }
+
   return false;
+}
+
+// Alternar favorito de una tarea
+async function toggleFavorite(event, taskId) {
+  event.stopPropagation();
+  try {
+    await window.api.toggleFavorite(taskId);
+    await loadTasks();
+  } catch (error) {
+    console.error('Error al cambiar favorito:', error);
+  }
 }
 
 // Ver tarea (modal)

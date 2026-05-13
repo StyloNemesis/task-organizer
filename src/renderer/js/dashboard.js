@@ -404,6 +404,7 @@ function getStatusBadgeClass(status) {
     'pending': 'badge-pending',
     'in_progress': 'badge-info',
     'testing': 'badge-warning',
+    'blocked': 'badge-blocked',
     'completed': 'badge-completed'
   };
   return classes[status] || 'badge-pending';
@@ -414,28 +415,32 @@ function getStatusText(status) {
     'pending': `${ICONS.pending} Pendiente`,
     'in_progress': `${ICONS.inProgress} En Curso`,
     'testing': `${ICONS.testing} Testing`,
+    'blocked': `${ICONS.blocked} Bloqueado`,
     'completed': `${ICONS.completed} Completada`
   };
   return texts[status] || `${ICONS.pending} Pendiente`;
 }
 
 function getStatusButtons(taskId, currentStatus) {
-  const statuses = ['pending', 'in_progress', 'testing', 'completed'];
+  const statuses = ['pending', 'in_progress', 'blocked', 'testing', 'completed'];
   const icons = {
     'pending': ICONS.pending,
     'in_progress': ICONS.inProgress,
+    'blocked': ICONS.blocked,
     'testing': ICONS.testing,
     'completed': ICONS.completed
   };
   const titles = {
     'pending': 'Marcar como Pendiente',
     'in_progress': 'Marcar En Curso',
+    'blocked': 'Marcar como Bloqueado',
     'testing': 'Marcar en Testing',
     'completed': 'Marcar Completada'
   };
   const btnClasses = {
     'pending': 'btn-status-pending',
     'in_progress': 'btn-status-in-progress',
+    'blocked': 'btn-status-blocked',
     'testing': 'btn-status-testing',
     'completed': 'btn-status-completed'
   };
