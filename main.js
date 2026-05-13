@@ -100,12 +100,20 @@ ipcMain.handle('delete-task', async (event, id) => {
   return db.deleteTask(id);
 });
 
+ipcMain.handle('delete-completed-tasks', async () => {
+  return db.deleteCompletedTasks();
+});
+
 ipcMain.handle('toggle-task', async (event, id) => {
   return db.toggleTask(id);
 });
 
 ipcMain.handle('update-task-status', async (event, id, status) => {
   return db.updateTaskStatus(id, status);
+});
+
+ipcMain.handle('toggle-favorite', async (event, id) => {
+  return db.toggleFavorite(id);
 });
 
 // IPC Handlers para notas

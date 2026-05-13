@@ -35,6 +35,11 @@ const ICONS = {
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" version="1.1" x="0px" y="0px" viewBox="0 0 100 100"><path d="M72.4,43.4L65,35l2.2-11l17.3-4.6c-6-7.5-16.1-11.2-26-8.6c-13.3,3.6-21.3,17.3-17.7,30.6c0.2,0.9,0.5,1.8,0.9,2.7 L12.9,72.9C9,76.8,9,83.2,12.9,87.1c3.9,3.9,10.2,3.9,14.1,0l28.8-28.8c4.8,1.9,10.2,2.3,15.6,0.9c9.9-2.7,16.8-10.9,18.3-20.4 L72.4,43.4z M20,85c-2.8,0-5-2.2-5-5s2.2-5,5-5s5,2.2,5,5S22.8,85,20,85z" fill="currentColor"></path></svg>
     `,
   
+  blocked: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <line x1="4" y1="8" x2="12" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+  
   completed: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
@@ -69,6 +74,14 @@ const ICONS = {
     <rect x="2" y="2" width="4" height="16" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
     <rect x="8" y="2" width="4" height="11" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
     <rect x="14" y="2" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+  </svg>`,
+
+  star: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 1.33337L10.06 5.50671L14.6667 6.18004L11.3333 9.42671L12.12 14.0134L8 11.8467L3.88 14.0134L4.66667 9.42671L1.33333 6.18004L5.94 5.50671L8 1.33337Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  starFilled: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 1.33337L10.06 5.50671L14.6667 6.18004L11.3333 9.42671L12.12 14.0134L8 11.8467L3.88 14.0134L4.66667 9.42671L1.33333 6.18004L5.94 5.50671L8 1.33337Z" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="#f59e0b"/>
   </svg>`
 };
 

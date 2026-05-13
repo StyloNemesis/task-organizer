@@ -237,6 +237,15 @@ body {
   background-color: #fde68a;
 }
 
+.btn-status-blocked {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.btn-status-blocked:hover {
+  background-color: #fecaca;
+}
+
 .btn-status-completed {
   background-color: #d1fae5;
   color: #065f46;
@@ -645,6 +654,11 @@ textarea.form-control {
   color: #92400e;
 }
 
+.badge-blocked {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
 /* Modal */
 .modal {
   display: none;
@@ -1017,9 +1031,17 @@ textarea.form-control {
 .kanban-board {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - 180px);
+  height: auto;
   overflow-x: auto;
   padding-bottom: 1rem;
+}
+
+/* En la vista de kanban simple (sin doble layout) las columnas ocupan la pantalla */
+.content-body:not(.kanban-double-layout) .kanban-board {
+  height: calc(100vh - 180px);
+}
+.content-body:not(.kanban-double-layout) .kanban-column-body {
+  overflow-y: auto;
 }
 
 .kanban-column {
@@ -1205,6 +1227,87 @@ textarea.form-control {
   background: var(--text-secondary);
 }
 
+/* Double Kanban layout */
+.kanban-double-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  padding: 1.5rem 2rem !important;
+  overflow-y: visible;
+}
+
+/* Cuando el body tiene doble layout, el scroll debe venir de main-content */
+.main-content:has(.kanban-double-layout) {
+  overflow-y: auto;
+}
+.main-content:has(.kanban-double-layout) .content-body {
+  overflow-y: visible;
+  flex: none;
+}
+
+.kanban-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.kanban-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.kanban-section-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.kanban-section-icon {
+  display: flex;
+  align-items: center;
+  color: #f59e0b;
+}
+
+.kanban-section .kanban-board {
+  height: auto;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.kanban-section .kanban-column-body {
+  /* Sin max-height: las columnas crecen con el contenido y el scroll es de la página */
+  overflow-y: visible;
+  max-height: none;
+}
+
+/* Favorite button on kanban cards */
+.kanban-favorite-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem;
+  border-radius: 0.25rem;
+  transition: color 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.kanban-favorite-btn:hover {
+  color: #f59e0b;
+  transform: scale(1.2);
+}
+
+.kanban-favorite-btn.active {
+  color: #f59e0b;
+}
+
 /* Responsive para tableros Kanban */
 @media (max-width: 1200px) {
   .kanban-board {
@@ -1228,5 +1331,9 @@ textarea.form-control {
   
   .kanban-column-body {
     max-height: 400px;
+  }
+
+  .kanban-section .kanban-board {
+    height: auto;
   }
 }
