@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Proyectos - Task Organizer</title>
   <link rel="stylesheet" href="css/styles.css">
+  <script>
+    // Apply saved theme immediately to prevent flash
+    (function() { var t = localStorage.getItem('app-theme') || 'light'; document.documentElement.setAttribute('data-theme', t); })();
+  </script>
 </head>
 <body>
   <div class="app-container">
@@ -36,6 +40,7 @@
     window.initModals(['project']);
   </script>
   <script src="js/icons.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/sidebar.js"></script>
   <script src="js/external-links.js"></script>
   <script src="js/modal-resize.js"></script>

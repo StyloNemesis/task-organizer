@@ -6,6 +6,10 @@
   <title>Proyecto - Task Organizer</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script>
+    // Apply saved theme immediately to prevent flash
+    (function() { var t = localStorage.getItem('app-theme') || 'light'; document.documentElement.setAttribute('data-theme', t); })();
+  </script>
 </head>
 <body>
   <div class="app-container">
@@ -65,6 +69,7 @@
   </script>
   <script src="js/icons.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/sidebar.js"></script>
   <script src="js/external-links.js"></script>
   <script src="js/modal-resize.js"></script>

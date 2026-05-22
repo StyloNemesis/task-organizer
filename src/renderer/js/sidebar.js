@@ -28,6 +28,13 @@
       <div class="sidebar-footer" id="sidebarFooter">
         <!-- Se llenará dinámicamente según la página -->
       </div>
+
+      <div class="sidebar-bottom">
+        <a href="themes.html" class="nav-link nav-link-bottom ${currentPage === 'themes.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.palette}</span>
+          Apariencia
+        </a>
+      </div>
     </aside>
   `;
 
@@ -36,19 +43,14 @@
     const appContainer = document.querySelector('.app-container');
     if (appContainer) {
       appContainer.insertAdjacentHTML('afterbegin', sidebarHTML);
-      
-      // Cargar el footer específico de cada página
       loadSidebarFooter();
-      
-      // Emitir evento personalizado para notificar que el sidebar está listo
       window.dispatchEvent(new Event('sidebarLoaded'));
     }
   });
 
   function loadSidebarFooter() {
     const footer = document.getElementById('sidebarFooter');
-    
-    // Footer vacío - los botones de acción están en el header
     footer.innerHTML = '';
   }
 })();
+

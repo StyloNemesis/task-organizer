@@ -82,6 +82,14 @@ const ICONS = {
 
   starFilled: `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M8 1.33337L10.06 5.50671L14.6667 6.18004L11.3333 9.42671L12.12 14.0134L8 11.8467L3.88 14.0134L4.66667 9.42671L1.33333 6.18004L5.94 5.50671L8 1.33337Z" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="#f59e0b"/>
+  </svg>`,
+
+  palette: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C12.83 22 13.5 21.33 13.5 20.5C13.5 20.11 13.35 19.76 13.11 19.49C12.88 19.23 12.73 18.88 12.73 18.5C12.73 17.67 13.4 17 14.23 17H16C18.76 17 21 14.76 21 12C21 6.48 16.52 2 12 2Z" stroke="currentColor" stroke-width="1.5"/>
+    <circle cx="6.5" cy="11.5" r="1.5" fill="currentColor"/>
+    <circle cx="9.5" cy="7.5" r="1.5" fill="currentColor"/>
+    <circle cx="14.5" cy="7.5" r="1.5" fill="currentColor"/>
+    <circle cx="17.5" cy="11.5" r="1.5" fill="currentColor"/>
   </svg>`
 };
 
