@@ -6,8 +6,19 @@
   <title>Proyecto - Task Organizer</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script>
+    // Apply saved theme immediately to prevent flash
+    (function() { var t = localStorage.getItem('app-theme') || 'light'; document.documentElement.setAttribute('data-theme', t); })();
+  </script>
 </head>
 <body>
+  <div class="titlebar">
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+      <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+      <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+    </div>
+  </div>
   <div class="app-container">
     <!-- Sidebar se cargará dinámicamente -->
 
@@ -65,6 +76,7 @@
   </script>
   <script src="js/icons.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/sidebar.js"></script>
   <script src="js/external-links.js"></script>
   <script src="js/modal-resize.js"></script>

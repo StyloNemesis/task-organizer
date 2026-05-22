@@ -38,6 +38,8 @@ Aplicación de escritorio para organización personal desarrollada con Electron 
 
 ### Pasos de Instalación
 
+Hay **dos opciones**, podeis ir a la sección de [Releases](https://github.com/StyloNemesis/task-organizer/releases), donde podréis encontrar los instaladores para cada uno de los sistemas operativos. O podeis realizar una instalación manual siguiendo los siguientes pasos a partir del código del repositorio:
+
 1. **Instalar dependencias:**
    ```bash
    npm install
@@ -177,17 +179,6 @@ Lenguajes soportados: JavaScript, Python, SQL, HTML, CSS, Java, C++, JSON, Bash,
 **Alternar Vista Previa:**
 - Usa el botón "Vista previa" para ver el markdown renderizado
 - Usa el botón "Editar" para volver al modo de edición
-
-## Próximas Mejoras
-
-- [x] Empaquetar la aplicación para distribución
-- [x] Soporte Markdown para la descripción de las tareas
-- [x] Syntax highlighting para bloques de código
-- [x] Tablero Kanban
-- [ ] Vista tareas de ejecución del día actual
-- [ ] Temas personalizables (modo oscuro/claro)
-- [ ] Adjuntar archivos además de imágenes
-- [x] Etiquetas personalizadas (Tags)
 
 ## Licencia
 
