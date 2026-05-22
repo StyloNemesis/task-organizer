@@ -10,7 +10,7 @@
     { id: 'sunset',    label: 'Sunset',    dark: false, color: '#9a3412', sidebar: '#9a3412', bg: '#fff7ed', accent: '#ea580c' },
     { id: 'floral',    label: 'Flores',    dark: false, color: '#ec4899', sidebar: '#500724', bg: '#fff0f6', accent: '#ec4899' },
     { id: 'ondas',     label: 'Ondas',     dark: false, color: '#facc15', sidebar: '#4a2c0a', bg: '#fefce8', accent: '#facc15' },
-    { id: 'marroqui',  label: 'Marroquí',  dark: false, color: '#c2440a', sidebar: '#6b3011', bg: '#fef3e8', accent: '#c2440a' },
+    { id: 'terracota',  label: 'Terracota',  dark: false, color: '#c2440a', sidebar: '#6b3011', bg: '#fef3e8', accent: '#c2440a' },
     { id: 'diamantes', label: 'Diamantes', dark: false, color: '#4f46e5', sidebar: '#1e1b4b', bg: '#f0f4ff', accent: '#4f46e5' },
     { id: 'zigzag',    label: 'Zigzag',    dark: false, color: '#0d9488', sidebar: '#134e4a', bg: '#f0fdfa', accent: '#0d9488' },
     // Temas oscuros

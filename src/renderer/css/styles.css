@@ -28,12 +28,61 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Titlebar personalizado */
+.titlebar {
+  height: 32px;
+  min-height: 32px;
+  background-color: var(--bg-sidebar);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  -webkit-app-region: drag;
+  user-select: none;
+  z-index: 9999;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: no-drag;
+  padding-right: 4px;
+}
+
+.titlebar-btn {
+  width: 46px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: background-color 0.15s;
+}
+
+.titlebar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.titlebar-btn.close:hover {
+  background-color: #ef4444;
+  color: #fff;
 }
 
 /* Layout */
 .app-container {
   display: flex;
-  height: 100vh;
+  flex: 1;
   overflow: hidden;
 }
 
@@ -2307,8 +2356,8 @@ textarea.form-control {
   color: #ca8a04;
 }
 
-/* --- Marroquí theme (terracotta + fish-scale circles) --- */
-[data-theme="marroqui"] {
+/* --- Terracota theme (terracotta + fish-scale circles) --- */
+[data-theme="terracota"] {
   --primary-color: #c2440a;
   --bg-primary: #fef3e8;
   --bg-secondary: #fffcf7;
@@ -2318,7 +2367,7 @@ textarea.form-control {
   --border-color: #f5d0a9;
 }
 
-[data-theme="marroqui"] body {
+[data-theme="terracota"] body {
   background-color: #fef3e8;
   background-image:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Ccircle cx='20' cy='20' r='20' fill='none' stroke='rgba(194,68,10,0.18)' stroke-width='1.5'/%3E%3C/svg%3E"),
@@ -2327,77 +2376,77 @@ textarea.form-control {
   background-position: 0 0, 20px 20px;
 }
 
-[data-theme="marroqui"] .sidebar-header {
+[data-theme="terracota"] .sidebar-header {
   border-bottom-color: rgba(245, 208, 169, 0.2);
 }
 
-[data-theme="marroqui"] .nav-link.active {
+[data-theme="terracota"] .nav-link.active {
   background: linear-gradient(90deg, rgba(194, 68, 10, 0.8), rgba(194, 68, 10, 0.45));
 }
 
-[data-theme="marroqui"] .stat-card,
-[data-theme="marroqui"] .project-card,
-[data-theme="marroqui"] .task-item,
-[data-theme="marroqui"] .kanban-card,
-[data-theme="marroqui"] .note-card,
-[data-theme="marroqui"] .table-container {
+[data-theme="terracota"] .stat-card,
+[data-theme="terracota"] .project-card,
+[data-theme="terracota"] .task-item,
+[data-theme="terracota"] .kanban-card,
+[data-theme="terracota"] .note-card,
+[data-theme="terracota"] .table-container {
   border: 1px solid #f5d0a9;
   box-shadow: 0 1px 4px rgba(194, 68, 10, 0.07);
 }
 
-[data-theme="marroqui"] .project-card:hover,
-[data-theme="marroqui"] .note-card:hover {
+[data-theme="terracota"] .project-card:hover,
+[data-theme="terracota"] .note-card:hover {
   box-shadow: 0 6px 16px rgba(194, 68, 10, 0.12);
   border-color: #f0b87e;
 }
 
-[data-theme="marroqui"] .content-header {
+[data-theme="terracota"] .content-header {
   background: linear-gradient(135deg, #fef3e8, #fef6ee);
   border-bottom-color: #f5d0a9;
 }
 
-[data-theme="marroqui"] .modal-content {
+[data-theme="terracota"] .modal-content {
   border: 1px solid #f5d0a9;
   box-shadow: 0 20px 40px rgba(194, 68, 10, 0.1);
 }
 
-[data-theme="marroqui"] .modal-header {
+[data-theme="terracota"] .modal-header {
   background: linear-gradient(135deg, #fef6ee, #fef3e8);
   border-bottom-color: #f5d0a9;
 }
 
-[data-theme="marroqui"] .btn-primary {
+[data-theme="terracota"] .btn-primary {
   background: linear-gradient(135deg, #c2440a, #a33508);
 }
 
-[data-theme="marroqui"] .btn-primary:hover {
+[data-theme="terracota"] .btn-primary:hover {
   background: linear-gradient(135deg, #a33508, #882b06);
 }
 
-[data-theme="marroqui"] .kanban-column {
+[data-theme="terracota"] .kanban-column {
   background-color: rgba(254, 243, 232, 0.75);
   border: 1px solid #f5d0a9;
 }
 
-[data-theme="marroqui"] .kanban-column-header {
+[data-theme="terracota"] .kanban-column-header {
   background: linear-gradient(135deg, #fef6ee, #fef3e8);
   border-bottom-color: #f5d0a9;
 }
 
-[data-theme="marroqui"] .tasks-table th {
+[data-theme="terracota"] .tasks-table th {
   background-color: #fef6ee;
 }
 
-[data-theme="marroqui"] .tasks-table tr:hover {
+[data-theme="terracota"] .tasks-table tr:hover {
   background-color: #fef6ee;
 }
 
-[data-theme="marroqui"] .tag-checkbox:hover {
+[data-theme="terracota"] .tag-checkbox:hover {
   background-color: #fef6ee;
   border-color: #c2440a;
 }
 
-[data-theme="marroqui"] .stat-value {
+[data-theme="terracota"] .stat-value {
   color: #c2440a;
 }
 

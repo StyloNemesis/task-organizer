@@ -12,6 +12,13 @@
   </script>
 </head>
 <body>
+  <div class="titlebar">
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+      <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+      <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+    </div>
+  </div>
   <div class="app-container">
     <!-- Sidebar se cargará dinámicamente -->
 

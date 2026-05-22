@@ -26,5 +26,10 @@ contextBridge.exposeInMainWorld('api', {
   deleteNote: (id) => ipcRenderer.invoke('delete-note', id),
   
   // Abrir enlaces externos
-  openExternal: (url) => ipcRenderer.invoke('open-external', url)
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
+  // Controles de ventana
+  windowMinimize: () => ipcRenderer.send('window-minimize'),
+  windowMaximize: () => ipcRenderer.send('window-maximize'),
+  windowClose: () => ipcRenderer.send('window-close')
 });

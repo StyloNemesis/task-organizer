@@ -17,6 +17,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    frame: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -158,3 +159,11 @@ ipcMain.handle('delete-note', async (event, id) => {
 ipcMain.handle('open-external', async (event, url) => {
   shell.openExternal(url);
 });
+
+// IPC Handlers para controles de ventana
+ipcMain.on('window-minimize', () => mainWindow && mainWindow.minimize());
+ipcMain.on('window-maximize', () => {
+  if (!mainWindow) return;
+  mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+});
+ipcMain.on('window-close', () => mainWindow && mainWindow.close());
