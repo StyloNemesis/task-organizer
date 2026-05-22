@@ -41,6 +41,27 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  // Controles de zoom: Ctrl+=/+/Shift+= para ampliar, Ctrl+- para reducir, Ctrl+0 para restablecer
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (!input.control) return;
+    const key = input.key;
+    // Ctrl++ (Shift+=) o Ctrl+= → zoom in
+    if ((key === '+' || key === '=') && input.type === 'keyDown') {
+      const current = mainWindow.webContents.getZoomLevel();
+      mainWindow.webContents.setZoomLevel(current + 0.5);
+      event.preventDefault();
+    // Ctrl+- → zoom out
+    } else if (key === '-' && input.type === 'keyDown') {
+      const current = mainWindow.webContents.getZoomLevel();
+      mainWindow.webContents.setZoomLevel(current - 0.5);
+      event.preventDefault();
+    // Ctrl+0 → restablecer zoom
+    } else if (key === '0' && input.type === 'keyDown') {
+      mainWindow.webContents.setZoomLevel(0);
+      event.preventDefault();
+    }
+  });
 }
 
 app.whenReady().then(() => {
