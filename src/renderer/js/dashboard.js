@@ -243,7 +243,54 @@ async function loadTasks() {
   allTasks = await window.api.getAllTasks();
   filteredTasks = [...allTasks];
   updateStats();
+  renderTodayAlert();
   sortAndRenderTasks();
+}
+
+function renderTodayAlert() {
+  const container = document.getElementById('todayAlert');
+  if (!container) return;
+
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  const todayTasks = allTasks.filter(t =>
+    t.due_date &&
+    t.due_date.substring(0, 10) === todayStr &&
+    t.status !== 'completed'
+  );
+
+  if (todayTasks.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+
+  const critOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  todayTasks.sort((a, b) => (critOrder[a.criticality] ?? 2) - (critOrder[b.criticality] ?? 2));
+
+  container.innerHTML = `
+    <div class="today-alert">
+      <div class="today-alert-header">
+        <span class="today-alert-icon">${ICONS.calendar}</span>
+        <strong>Tienes ${todayTasks.length} tarea${todayTasks.length !== 1 ? 's' : ''} para hoy</strong>
+        <a href="calendar.html" class="btn btn-sm btn-primary" style="margin-left:auto;">Ver Calendario</a>
+      </div>
+      <div class="today-alert-tasks">
+        ${todayTasks.map(task => `
+          <div class="today-alert-task" onclick="viewTask(${task.id})">
+            <span class="badge badge-${task.criticality || 'medium'}">${getCriticalityText(task.criticality)}</span>
+            <span class="badge ${getStatusBadgeClass(task.status || 'pending')}">${getStatusText(task.status || 'pending')}</span>
+            <span class="today-alert-task-title">${escapeHtml(task.title)}</span>
+            <span class="today-alert-task-project" style="color:${task.parent_project_color || task.project_color || '#3b82f6'}">
+              &#9679; ${escapeHtml(task.parent_project_name || task.project_name || '')}
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  container.style.display = 'block';
 }
 
 function updateStats() {
