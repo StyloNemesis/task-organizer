@@ -19,6 +19,10 @@
           <span class="icon">${ICONS.kanban}</span>
           Kanban
         </a>
+        <a href="calendar.html" class="nav-link ${currentPage === 'calendar.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.calendar}</span>
+          Calendario
+        </a>
         <a href="projects.html" class="nav-link ${currentPage === 'projects.html' ? 'active' : ''}">
           <span class="icon">${ICONS.folder}</span>
           Proyectos

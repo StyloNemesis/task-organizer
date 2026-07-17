@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendario - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script>
+    // Apply saved theme immediately to prevent flash
+    (function() { var t = localStorage.getItem('app-theme') || 'light'; document.documentElement.setAttribute('data-theme', t); })();
+  </script>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+      <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+      <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+    </div>
+  </div>
+  <div class="app-container">
+    <!-- Sidebar se cargará dinámicamente -->
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="content-header">
+        <h2>Calendario</h2>
+        <div class="header-actions">
+          <div class="calendar-nav-controls">
+            <button class="btn btn-secondary calendar-nav-btn" id="prevMonthBtn">&#8249;</button>
+            <span id="calendarMonthTitle" class="calendar-month-title"></span>
+            <button class="btn btn-secondary calendar-nav-btn" id="nextMonthBtn">&#8250;</button>
+          </div>
+          <button class="btn btn-secondary" id="todayBtn">Hoy</button>
+          <button class="btn btn-primary" id="newTaskBtn">+ Nueva Tarea</button>
+        </div>
+      </header>
+
+      <div class="content-body calendar-content-body">
+        <div class="calendar-container">
+          <div class="calendar-weekdays">
+            <div class="calendar-weekday">Lun</div>
+            <div class="calendar-weekday">Mar</div>
+            <div class="calendar-weekday">Mié</div>
+            <div class="calendar-weekday">Jue</div>
+            <div class="calendar-weekday">Vie</div>
+            <div class="calendar-weekday">Sáb</div>
+            <div class="calendar-weekday">Dom</div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid">
+            <!-- Los días se generan dinámicamente -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Los modales se cargarán dinámicamente mediante modal-loader.js -->
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="js/modal-loader.js"></script>
+  <script>
+    // Cargar modales de forma síncrona ANTES de cargar otros scripts
+    window.initModals(['taskEdit', 'taskView', 'imageViewer']);
+  </script>
+  <script src="js/icons.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/external-links.js"></script>
+  <script src="js/modal-resize.js"></script>
+  <script src="js/calendar.js"></script>
+</body>
+</html>
