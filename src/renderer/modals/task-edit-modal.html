@@ -33,7 +33,7 @@
             Descripción (Markdown soportado)
             <button type="button" class="btn btn-sm btn-secondary" id="toggleTaskPreview" style="float: right;">Vista previa</button>
           </label>
-          <textarea id="taskDescription" class="form-control" rows="4"></textarea>
+          <textarea id="taskDescription" class="form-control auto-resize" rows="1"></textarea>
           <div id="taskDescriptionPreview" class="markdown-preview markdown-content" style="display: none;"></div>
         </div>
 
@@ -54,15 +54,22 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="taskStatus">Estado</label>
-          <select id="taskStatus" class="form-control">
-            <option value="pending">Pendiente</option>
-            <option value="in_progress">En Curso</option>
-            <option value="blocked">Bloqueado</option>
-            <option value="testing">Testing</option>
-            <option value="completed">Completada</option>
-          </select>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="taskStatus">Estado</label>
+            <select id="taskStatus" class="form-control">
+              <option value="pending">Pendiente</option>
+              <option value="in_progress">En Curso</option>
+              <option value="blocked">Bloqueado</option>
+              <option value="testing">Testing</option>
+              <option value="completed">Completada</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="taskVersion">Versión <span style="font-weight:normal;color:var(--text-secondary);font-size:0.85em;">(opcional)</span></label>
+            <input type="text" id="taskVersion" class="form-control" placeholder="ej: 1.0.0, v2.3">
+          </div>
         </div>
 
         <div class="form-group">

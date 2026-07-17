@@ -90,6 +90,11 @@ const ICONS = {
     <circle cx="9.5" cy="7.5" r="1.5" fill="currentColor"/>
     <circle cx="14.5" cy="7.5" r="1.5" fill="currentColor"/>
     <circle cx="17.5" cy="11.5" r="1.5" fill="currentColor"/>
+  </svg>`,
+
+  version: `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5.5 2.5L1.5 8L5.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10.5 2.5L14.5 8L10.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`
 };
 

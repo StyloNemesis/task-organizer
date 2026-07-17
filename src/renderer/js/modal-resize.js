@@ -120,4 +120,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   `;
   document.head.appendChild(style);
+
+  // ── Auto-resize para textareas con clase .auto-resize ─────────────────
+  function fitTextarea(el) {
+    if (!el || !el.classList.contains('auto-resize')) return;
+    el.style.height = 'auto';
+    const max = Math.floor(window.innerHeight * 0.5);
+    el.style.height = Math.min(el.scrollHeight, max) + 'px';
+    el.style.overflowY = el.scrollHeight > max ? 'auto' : 'hidden';
+  }
+
+  // Redimensiona al escribir
+  document.addEventListener('input', function (e) {
+    if (e.target.tagName === 'TEXTAREA') fitTextarea(e.target);
+  });
+
+  // Redimensiona cuando el modal de edición se abre (detecta clase 'active')
+  const observer = new MutationObserver(function (mutations) {
+    mutations.forEach(function (m) {
+      if (m.attributeName === 'class' && m.target.classList.contains('active')) {
+        const ta = m.target.querySelector('textarea.auto-resize');
+        if (ta) setTimeout(() => fitTextarea(ta), 0);
+      }
+    });
+  });
+
+  function observeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) observer.observe(modal, { attributes: true });
+  }
+
+  // Espera a que los modales estén en el DOM
+  const waitForModals = setInterval(function () {
+    if (document.getElementById('taskModal')) {
+      clearInterval(waitForModals);
+      observeModal('taskModal');
+    }
+  }, 30);
 });

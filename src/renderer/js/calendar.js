@@ -160,6 +160,9 @@ function buildDayCell(dayNum, dateStr, isOtherMonth, isToday, tasks) {
     (isOtherMonth ? ' calendar-day--other-month' : '') +
     (isToday ? ' calendar-day--today' : '');
 
+  // Click en área vacía del día → nueva tarea con esa fecha
+  cell.addEventListener('click', () => openNewTaskModal(dateStr));
+
   const header = document.createElement('div');
   header.className = 'calendar-day-number';
   header.textContent = dayNum;
@@ -169,12 +172,25 @@ function buildDayCell(dayNum, dateStr, isOtherMonth, isToday, tasks) {
   tasksList.className = 'calendar-day-tasks';
 
   tasks.forEach(task => {
+    const critColor = getCriticalityColor(task.criticality || 'medium');
+    const tags = task.tags ? JSON.parse(task.tags) : [];
+    const tagsHtml = tags.length > 0 ? `
+      <div class="calendar-task-tags-row">
+        ${tags.slice(0, 2).map(tag => `<span class="calendar-task-tag-chip" style="background:${getTagColor(tag)}22;color:${getTagColor(tag)};">${escapeHtml(tag)}</span>`).join('')}
+        ${tags.length > 2 ? `<span class="calendar-task-tag-chip" style="background:var(--bg-secondary);color:var(--text-secondary);">+${tags.length - 2}</span>` : ''}
+      </div>` : '';
+    const versionHtml = task.version ? `<div class="calendar-task-version-row"><span class="version-badge">${ICONS.version} ${escapeHtml(task.version)}</span></div>` : '';
     const pill = document.createElement('div');
     pill.className = `calendar-task calendar-task--${task.status || 'pending'}`;
-    pill.title = task.title;
+    pill.title = `${task.title} [• ${getCriticalityText(task.criticality || 'medium')}]`;
+    pill.style.borderLeft = `3px solid ${critColor}`;
     pill.innerHTML = `
-      <span class="calendar-task-dot" style="background-color:${task.project_color || task.parent_project_color || '#3b82f6'};"></span>
-      <span class="calendar-task-title">${escapeHtml(task.title)}</span>
+      <div class="calendar-task-main">
+        <span class="calendar-task-dot" style="background-color:${task.project_color || task.parent_project_color || '#3b82f6'};"></span>
+        <span class="calendar-task-title">${escapeHtml(task.title)}</span>
+      </div>
+      ${versionHtml}
+      ${tagsHtml}
     `;
     pill.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -258,11 +274,22 @@ function viewTask(taskId) {
     dueDateContainer.style.display = 'none';
   }
 
+  // Versión
+  const versionContainer = document.getElementById('viewTaskVersionContainer');
+  if (versionContainer) {
+    if (task.version) {
+      document.getElementById('viewTaskVersion').innerHTML = `${ICONS.version} ${escapeHtml(task.version)}`;
+      versionContainer.style.display = 'block';
+    } else {
+      versionContainer.style.display = 'none';
+    }
+  }
+
   const tagsContainer = document.getElementById('viewTaskTagsContainer');
   const tags = task.tags ? JSON.parse(task.tags) : [];
   if (tags.length > 0) {
     document.getElementById('viewTaskTags').innerHTML =
-      tags.map(tag => `<span class="badge tag-badge">${escapeHtml(tag)}</span>`).join('');
+      tags.map(tag => `<span class="tag-badge" style="background:${getTagColor(tag)}22;color:${getTagColor(tag)};border:1px solid ${getTagColor(tag)}44;">${escapeHtml(tag)}</span>`).join('');
     tagsContainer.style.display = 'block';
   } else {
     tagsContainer.style.display = 'none';
@@ -293,7 +320,7 @@ function viewImage(src) {
 
 // ===================== TASK EDIT MODAL =====================
 
-function openNewTaskModal() {
+function openNewTaskModal(defaultDate = '') {
   editingTaskId = null;
   taskImages = [];
 
@@ -302,9 +329,10 @@ function openNewTaskModal() {
   document.getElementById('taskProjectId').value = '';
   document.getElementById('taskTitle').value = '';
   document.getElementById('taskDescription').value = '';
-  document.getElementById('taskDueDate').value = '';
+  document.getElementById('taskDueDate').value = defaultDate;
   document.getElementById('taskCriticality').value = 'medium';
   document.getElementById('taskStatus').value = 'pending';
+  document.getElementById('taskVersion').value = '';
 
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => { cb.checked = false; });
 
@@ -354,6 +382,7 @@ async function editTask(id) {
   document.getElementById('taskDueDate').value = task.due_date || '';
   document.getElementById('taskCriticality').value = task.criticality || 'medium';
   document.getElementById('taskStatus').value = task.status || 'pending';
+  document.getElementById('taskVersion').value = task.version || '';
 
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
     cb.checked = taskTags.includes(cb.value);
@@ -416,6 +445,7 @@ async function handleTaskSubmit(e) {
     due_date: document.getElementById('taskDueDate').value || null,
     criticality: document.getElementById('taskCriticality').value,
     status: document.getElementById('taskStatus').value,
+    version: document.getElementById('taskVersion').value || null,
     tags: selectedTags,
     images: taskImages
   };
@@ -505,9 +535,10 @@ function initTags() {
   const tagsContainer = document.getElementById('tagsSelector');
   if (tagsContainer && typeof AVAILABLE_TAGS !== 'undefined') {
     tagsContainer.innerHTML = AVAILABLE_TAGS.map(tag => `
-      <label class="tag-checkbox">
-        <input type="checkbox" name="taskTag" value="${tag}">
-        <span class="tag-label">${tag}</span>
+      <label class="tag-checkbox" style="--tag-color:${tag.color};">
+        <input type="checkbox" name="taskTag" value="${tag.name}">
+        <span class="tag-color-dot" style="background:${tag.color};"></span>
+        ${tag.name}
       </label>
     `).join('');
   }
@@ -561,6 +592,11 @@ function getStatusText(status) {
 function getCriticalityText(criticality) {
   const texts = { low: 'Baja', medium: 'Media', high: 'Alta', critical: 'Crítica' };
   return texts[criticality] || 'Media';
+}
+
+function getCriticalityColor(criticality) {
+  const colors = { low: '#10b981', medium: '#f59e0b', high: '#f97316', critical: '#ef4444' };
+  return colors[criticality] || '#f59e0b';
 }
 
 function formatDate(dateString) {
