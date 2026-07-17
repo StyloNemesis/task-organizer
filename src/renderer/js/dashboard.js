@@ -402,7 +402,8 @@ function renderTasks() {
       <td>
         <strong>${escapeHtml(task.title)}</strong>
         ${task.description ? `<br><small class="markdown-content" style="color: var(--text-secondary); display: block; max-height: 3em; overflow: hidden;">${marked.parse(task.description.substring(0, 100))}${task.description.length > 100 ? '...' : ''}</small>` : ''}
-        ${tags.length > 0 ? `<br><div style="display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap;">${tags.map(tag => `<span class="badge tag-badge">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+        ${tags.length > 0 ? `<br><div style="display: flex; gap: 0.25rem; margin-top: 0.25rem; flex-wrap: wrap;">${tags.map(tag => `<span class="tag-badge" style="background:${getTagColor(tag)}22;color:${getTagColor(tag)};border:1px solid ${getTagColor(tag)}44;">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+        ${task.version ? `<br><span class="version-badge">${ICONS.version} ${escapeHtml(task.version)}</span>` : ''}
       </td>
       <td>
         ${task.parent_project_name ? `
@@ -589,13 +590,24 @@ function viewTask(taskId) {
   } else {
     dueDateContainer.style.display = 'none';
   }
+
+  // Versión
+  const versionContainer = document.getElementById('viewTaskVersionContainer');
+  if (versionContainer) {
+    if (task.version) {
+      document.getElementById('viewTaskVersion').innerHTML = `${ICONS.version} ${escapeHtml(task.version)}`;
+      versionContainer.style.display = 'block';
+    } else {
+      versionContainer.style.display = 'none';
+    }
+  }
   
   // Tags
   const tagsContainer = document.getElementById('viewTaskTagsContainer');
   const tags = task.tags ? JSON.parse(task.tags) : [];
   if (tags.length > 0) {
-    document.getElementById('viewTaskTags').innerHTML = tags.map(tag => 
-      `<span class="badge tag-badge">${escapeHtml(tag)}</span>`
+    document.getElementById('viewTaskTags').innerHTML = tags.map(tag =>
+      `<span class="tag-badge" style="background:${getTagColor(tag)}22;color:${getTagColor(tag)};border:1px solid ${getTagColor(tag)}44;">${escapeHtml(tag)}</span>`
     ).join('');
     tagsContainer.style.display = 'block';
   } else {
@@ -674,9 +686,10 @@ function initTags() {
   const tagsContainer = document.getElementById('tagsSelector');
   if (tagsContainer && typeof AVAILABLE_TAGS !== 'undefined') {
     tagsContainer.innerHTML = AVAILABLE_TAGS.map(tag => `
-      <label class="tag-checkbox">
-        <input type="checkbox" name="taskTag" value="${tag}">
-        <span class="tag-label">${tag}</span>
+      <label class="tag-checkbox" style="--tag-color:${tag.color};">
+        <input type="checkbox" name="taskTag" value="${tag.name}">
+        <span class="tag-color-dot" style="background:${tag.color};"></span>
+        ${tag.name}
       </label>
     `).join('');
   }
@@ -699,6 +712,7 @@ async function editTask(id) {
   document.getElementById('taskDueDate').value = task.due_date || '';
   document.getElementById('taskCriticality').value = task.criticality || 'medium';
   document.getElementById('taskStatus').value = task.status || 'pending';
+  document.getElementById('taskVersion').value = task.version || '';
   
   // Marcar los tags que tiene la tarea
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
@@ -732,6 +746,7 @@ function openNewTaskModal() {
   document.getElementById('taskDueDate').value = '';
   document.getElementById('taskCriticality').value = 'medium';
   document.getElementById('taskStatus').value = 'pending';
+  document.getElementById('taskVersion').value = '';
   
   // Desmarcar todos los tags
   document.querySelectorAll('input[name="taskTag"]').forEach(cb => {
@@ -824,6 +839,7 @@ async function handleTaskSubmit(e) {
     due_date: document.getElementById('taskDueDate').value || null,
     criticality: document.getElementById('taskCriticality').value,
     status: document.getElementById('taskStatus').value,
+    version: document.getElementById('taskVersion').value || null,
     tags: selectedTags,
     images: taskImages
   };
