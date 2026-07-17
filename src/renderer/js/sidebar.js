@@ -37,7 +37,7 @@
       <div class="sidebar-bottom">
         <a href="themes.html" class="nav-link nav-link-bottom ${currentPage === 'themes.html' ? 'active' : ''}">
           <span class="icon">${ICONS.palette}</span>
-          Apariencia
+          Configuración
         </a>
       </div>
     </aside>

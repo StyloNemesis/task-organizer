@@ -3023,6 +3023,81 @@ textarea.form-control.auto-resize {
   flex-shrink: 0;
 }
 
+/* ========== TAG MANAGER ========== */
+
+.tag-manager-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  min-height: 40px;
+  align-items: flex-start;
+}
+
+.tag-manager-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.35rem 0.3rem 0.65rem;
+  border-radius: 0.375rem;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.tag-manager-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tag-manager-name {
+  font-weight: 500;
+}
+
+.tag-manager-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  border-radius: 2px;
+}
+
+.tag-manager-delete:hover:not(:disabled) {
+  color: var(--danger-color);
+}
+
+.tag-manager-delete:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.tag-manager-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tag-manager-color-input {
+  width: 42px;
+  height: 38px;
+  border: 1px solid var(--border-color);
+  border-radius: 0.375rem;
+  padding: 2px;
+  cursor: pointer;
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
 .kanban-card-version {
   margin-top: 0.4rem;
 }
