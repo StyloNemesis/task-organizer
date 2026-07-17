@@ -1,7 +1,7 @@
 {
   "name": "task-organizer",
   "productName": "Task Organizer",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Aplicación de escritorio para organización personal",
   "main": "main.js",
   "scripts": {
