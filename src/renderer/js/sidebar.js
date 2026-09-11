@@ -28,6 +28,10 @@
           <span class="icon">${ICONS.folder}</span>
           Proyectos
         </a>
+        <a href="integrations.html" class="nav-link ${currentPage === 'integrations.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.code}</span>
+          Issues
+        </a>
       </nav>
 
       <div class="sidebar-footer" id="sidebarFooter">
@@ -79,4 +83,3 @@
     } catch (e) { /* silencioso */ }
   }
 })();
-
