@@ -28,6 +28,17 @@ contextBridge.exposeInMainWorld('api', {
   // Abrir enlaces externos
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
 
+  // Issues de GitHub y GitLab
+  getIssueConnections: () => ipcRenderer.invoke('get-issue-connections'),
+  saveIssueConnection: (connection) => ipcRenderer.invoke('save-issue-connection', connection),
+  deleteIssueConnection: (provider) => ipcRenderer.invoke('delete-issue-connection', provider),
+  getExternalIssues: (provider) => ipcRenderer.invoke('get-external-issues', provider),
+  getExternalIssueLabels: (provider) => ipcRenderer.invoke('get-external-issue-labels', provider),
+  saveExternalIssueStatus: (issue) => ipcRenderer.invoke('save-external-issue-status', issue),
+  getExternalIssueLabelRules: () => ipcRenderer.invoke('get-external-issue-label-rules'),
+  saveExternalIssueLabelRule: (rule) => ipcRenderer.invoke('save-external-issue-label-rule', rule),
+  deleteExternalIssueLabelRule: (provider, label) => ipcRenderer.invoke('delete-external-issue-label-rule', provider, label),
+
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

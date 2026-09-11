@@ -130,6 +130,41 @@ class TaskDatabase {
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
       )
     `);
+
+    // Conexiones externas. El token se cifra antes de llegar a esta tabla.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS issue_connections (
+        provider TEXT PRIMARY KEY CHECK(provider IN ('github', 'gitlab')),
+        token TEXT NOT NULL,
+        projects TEXT NOT NULL DEFAULT '',
+        scope TEXT NOT NULL DEFAULT 'assigned' CHECK(scope IN ('assigned', 'all')),
+        base_url TEXT,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Estado local de flujo para issues externas; no altera la issue en GitHub/GitLab.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS external_issue_statuses (
+        provider TEXT NOT NULL,
+        project TEXT NOT NULL,
+        issue_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'blocked', 'testing', 'completed')),
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (provider, project, issue_id)
+      )
+    `);
+
+    // Reglas persistentes: una etiqueta remota puede colocar automáticamente una issue en una columna.
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS external_issue_label_rules (
+        provider TEXT NOT NULL CHECK(provider IN ('github', 'gitlab')),
+        label TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('pending', 'in_progress', 'blocked', 'testing', 'completed')),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (provider, label)
+      )
+    `);
   }
 
   // ========== PROYECTOS ==========
@@ -291,6 +326,74 @@ class TaskDatabase {
   deleteNote(id) {
     const stmt = this.db.prepare('DELETE FROM notes WHERE id = ?');
     stmt.run(id);
+    return { success: true };
+  }
+
+  // ========== INTEGRACIONES DE ISSUES ==========
+  getIssueConnections() {
+    return this.db.prepare(`
+      SELECT provider, projects, scope, base_url, updated_at
+      FROM issue_connections ORDER BY provider
+    `).all();
+  }
+
+  getIssueConnection(provider) {
+    return this.db.prepare('SELECT * FROM issue_connections WHERE provider = ?').get(provider);
+  }
+
+  saveIssueConnection(connection) {
+    this.db.prepare(`
+      INSERT INTO issue_connections (provider, token, projects, scope, base_url, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(provider) DO UPDATE SET
+        token = excluded.token,
+        projects = excluded.projects,
+        scope = excluded.scope,
+        base_url = excluded.base_url,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(
+      connection.provider,
+      connection.token,
+      connection.projects || '',
+      connection.scope || 'assigned',
+      connection.base_url || null
+    );
+    return { success: true };
+  }
+
+  deleteIssueConnection(provider) {
+    this.db.prepare('DELETE FROM issue_connections WHERE provider = ?').run(provider);
+    return { success: true };
+  }
+
+  getExternalIssueStatuses() {
+    return this.db.prepare('SELECT provider, project, issue_id, status FROM external_issue_statuses').all();
+  }
+
+  saveExternalIssueStatus(issue) {
+    this.db.prepare(`
+      INSERT INTO external_issue_statuses (provider, project, issue_id, status, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(provider, project, issue_id) DO UPDATE SET status = excluded.status, updated_at = CURRENT_TIMESTAMP
+    `).run(issue.provider, issue.project, String(issue.id), issue.status);
+    return { success: true };
+  }
+
+  getExternalIssueLabelRules() {
+    return this.db.prepare('SELECT provider, label, status FROM external_issue_label_rules ORDER BY provider, label').all();
+  }
+
+  saveExternalIssueLabelRule(rule) {
+    this.db.prepare(`
+      INSERT INTO external_issue_label_rules (provider, label, status)
+      VALUES (?, ?, ?)
+      ON CONFLICT(provider, label) DO UPDATE SET status = excluded.status
+    `).run(rule.provider, rule.label, rule.status);
+    return { success: true };
+  }
+
+  deleteExternalIssueLabelRule(provider, label) {
+    this.db.prepare('DELETE FROM external_issue_label_rules WHERE provider = ? AND label = ?').run(provider, label);
     return { success: true };
   }
 }
