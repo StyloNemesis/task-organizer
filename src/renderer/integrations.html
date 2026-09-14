@@ -22,10 +22,10 @@
       <div class="content-body integrations-page">
         <div class="integration-notice">Configura GitHub o GitLab desde <strong>Configuración</strong>. Los tokens se guardan cifrados en el almacén seguro de tu sistema.</div>
         <section class="issues-section">
-          <div class="issues-toolbar"><h3>Issues abiertas</h3><div><div class="issues-view-switch" role="group" aria-label="Vista"><button class="btn btn-secondary issue-view-btn active" data-view="table">Tabla</button><button class="btn btn-secondary issue-view-btn" data-view="kanban">Kanban</button></div><select id="issueProvider" class="form-control"><option value="all">Todos los proveedores</option><option value="github">GitHub</option><option value="gitlab">GitLab</option></select><button id="refreshIssues" class="btn btn-primary">Actualizar issues</button></div></div>
+          <div class="issues-toolbar"><h3>Issues abiertas</h3><div><div class="issues-view-switch" role="group" aria-label="Vista"><button class="btn btn-secondary issue-view-btn active" data-view="table">Tabla</button><button class="btn btn-secondary issue-view-btn" data-view="kanban">Kanban</button></div><button id="filterMyIssuesBtn" class="btn btn-secondary issue-my-tasks-btn" type="button" title="Filtrar por mis tareas"><svg class="issue-user-btn-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z"/></svg><span>Mis tareas</span></button><select id="issueProvider" class="form-control"><option value="all">Todos los proveedores</option><option value="github">GitHub</option><option value="gitlab">GitLab</option></select><button id="refreshIssues" class="btn btn-primary">Actualizar issues</button><button id="openExportIssuesModal" class="btn btn-secondary issue-export-btn" type="button" title="Exportar issues a Excel (.xlsx) o Vectorial (.svg)"><svg class="issue-export-btn-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8.5 1.5a.5.5 0 0 0-1 0v7.793L5.354 7.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 9.293V1.5z"/><path d="M14 14V9.5a.5.5 0 0 0-1 0V13H3V9.5a.5.5 0 0 0-1 0V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1z"/></svg><span>Exportar</span></button></div></div>
           <div class="issues-filters"><input id="issueSearch" class="form-control" type="search" placeholder="Buscar título, número o autor"><select id="issueProjectFilter" class="form-control"><option value="">Todos los proyectos</option></select><select id="issueAssigneeFilter" class="form-control"><option value="">Cualquier responsable</option></select><select id="issueLabelFilter" class="form-control"><option value="">Todas las etiquetas</option></select></div>
           <div id="issuesFeedback" class="issues-feedback">Configura una conexión para consultar tus issues.</div>
-          <div id="issuesTableView" class="issues-table-wrap"><table class="issues-table"><thead><tr><th>Proveedor</th><th>Issue</th><th>Proyecto</th><th>Responsable</th><th>Etiquetas</th><th>Milestone</th><th>Comentarios</th><th>Creada</th><th>Actualizada</th></tr></thead><tbody id="issuesList"></tbody></table></div>
+          <div id="issuesTableView" class="issues-table-wrap"><table class="issues-table"><thead><tr><th class="sortable" data-sort="provider" title="Ordenar por proveedor"><span class="th-content"><span>Proveedor</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="title" title="Ordenar por issue o título"><span class="th-content"><span>Issue</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="project" title="Ordenar por proyecto"><span class="th-content"><span>Proyecto</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="assignees" title="Ordenar por responsable"><span class="th-content"><span>Responsable</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="labels" title="Ordenar por etiquetas"><span class="th-content"><span>Etiquetas</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="milestone" title="Ordenar por milestone"><span class="th-content"><span>Milestone</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="comments" title="Ordenar por número de comentarios"><span class="th-content"><span>Comentarios</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="createdAt" title="Ordenar por fecha de creación"><span class="th-content"><span>Creada</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable sort-active sort-desc" data-sort="updatedAt" title="Ordenar por fecha de actualización"><span class="th-content"><span>Actualizada</span><span class="sort-icon" aria-hidden="true">↓</span></span></th></tr></thead><tbody id="issuesList"></tbody></table></div>
           <div id="issuesKanbanView" class="issues-kanban" hidden></div>
         </section>
         <div id="issueSettingsModal" class="issue-settings-modal" aria-hidden="true"><div class="issue-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="issueSettingsTitle"><div class="issue-settings-heading"><div><h3 id="issueSettingsTitle">Configuración de conexiones</h3><p>Indica los proyectos cuyos issues quieres consultar.</p></div><button id="closeIssueSettings" class="modal-close-btn" title="Cerrar">&times;</button></div><div class="integration-grid">
@@ -34,6 +34,9 @@
             <form class="integration-form">
               <label>Token personal <a href="https://github.com/settings/tokens?type=beta" class="external-link">Crear token</a>
                 <input class="form-control token-input" type="password" name="token" autocomplete="off" placeholder="Token con acceso a Issues" required>
+              </label>
+              <label>Usuario <span class="field-hint">Opcional, se auto-detecta</span>
+                <input class="form-control" type="text" name="username" placeholder="Tu usuario en GitHub (ej. aulloa)">
               </label>
               <label>Repositorios
                 <textarea class="form-control" name="projects" rows="3" placeholder="organizacion/repositorio&#10;usuario/otro-repositorio" required></textarea>
@@ -53,17 +56,83 @@
               <label>URL de GitLab <span class="field-hint">Opcional, para servidores propios</span>
                 <input class="form-control" type="url" name="baseUrl" placeholder="https://gitlab.com">
               </label>
+              <label>Usuario <span class="field-hint">Opcional, se auto-detecta</span>
+                <input class="form-control" type="text" name="username" placeholder="Tu usuario en GitLab (ej. aulloa)">
+              </label>
               <label>Proyectos
                 <textarea class="form-control" name="projects" rows="3" placeholder="grupo/proyecto&#10;grupo/subgrupo/proyecto" required></textarea>
               </label>
               <label>Mostrar
                 <select class="form-control" name="scope"><option value="assigned">Asignadas a mí</option><option value="all">Todas las abiertas</option></select>
               </label>
-              <div class="integration-actions"><button class="btn btn-primary" type="submit">Guardar conexión</button><button class="btn btn-danger disconnect-btn" type="button" hidden>Desconectar</button></div>
+              <div class="integration-actions"><button class="btn btn-primary" type="submit">Guardar conexión</button><button class="btn btn-secondary gitlab-web-session-btn" id="openGitLabWebSession" type="button" title="Inicia sesión en la web de GitLab en una ventana emergente para descargar avatares privados">Sesión web (Avatares)</button><button class="btn btn-danger disconnect-btn" type="button" hidden>Desconectar</button></div>
             </form>
           </section>
         </div>
         </div></div>
+        <div id="exportIssuesModal" class="issue-settings-modal" aria-hidden="true">
+          <div class="issue-settings-dialog export-dialog" role="dialog" aria-modal="true" aria-labelledby="exportIssuesTitle">
+            <div class="issue-settings-heading">
+              <div>
+                <h3 id="exportIssuesTitle">Exportar Issues</h3>
+                <p>Elige el formato y las opciones para exportar tus tareas.</p>
+              </div>
+              <button id="closeExportIssues" class="modal-close-btn" title="Cerrar">&times;</button>
+            </div>
+            <form id="exportIssuesForm" class="export-issues-form">
+              <div class="export-section-title">Formato de exportación</div>
+              <div class="export-format-grid">
+                <label class="export-format-card active" for="exportFormatXlsx">
+                  <input type="radio" id="exportFormatXlsx" name="exportFormat" value="xlsx" checked>
+                  <span class="export-format-icon">📊</span>
+                  <div class="export-format-info">
+                    <strong>Excel (.xlsx)</strong>
+                    <span>Hoja de cálculo estructurada con todos los metadatos y columnas.</span>
+                  </div>
+                </label>
+                <label class="export-format-card" for="exportFormatSvg">
+                  <input type="radio" id="exportFormatSvg" name="exportFormat" value="svg">
+                  <span class="export-format-icon">🖼</span>
+                  <div class="export-format-info">
+                    <strong>Vectorial (.svg)</strong>
+                    <span>Imagen vectorial nítida ideal para informes, presentaciones o documentación.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div id="exportSvgLayoutGroup" class="export-svg-layout-group" style="display: none;">
+                <div class="export-section-title">Diseño de la imagen SVG</div>
+                <div class="export-radio-options">
+                  <label class="export-radio-label">
+                    <input type="radio" name="exportSvgLayout" value="table" checked>
+                    <span>Vista Tabla ejecutiva</span>
+                  </label>
+                  <label class="export-radio-label">
+                    <input type="radio" name="exportSvgLayout" value="kanban">
+                    <span>Tablero Kanban con columnas de estado</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="export-section-title">Alcance de las issues</div>
+              <div class="export-radio-options">
+                <label class="export-radio-label">
+                  <input type="radio" name="exportScope" value="visible" checked>
+                  <span id="exportScopeVisibleLabel">Issues visibles según filtros actuales</span>
+                </label>
+                <label class="export-radio-label">
+                  <input type="radio" name="exportScope" value="all">
+                  <span id="exportScopeAllLabel">Todas las issues abiertas cargadas</span>
+                </label>
+              </div>
+
+              <div class="integration-actions export-modal-actions">
+                <button id="cancelExportIssues" class="btn btn-secondary" type="button">Cancelar</button>
+                <button id="confirmExportIssues" class="btn btn-primary" type="submit">Exportar archivo</button>
+              </div>
+            </form>
+          </div>
+        </div>
       </div>
     </main>
   </div>
