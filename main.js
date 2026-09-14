@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage, session, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, session, dialog, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
@@ -83,6 +83,13 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  mainWindow.on('focus', () => {
+    const now = Date.now();
+    if (now - (pullRequestsCache.timestamp || 0) > 60000) {
+      checkPullRequestsInBackground();
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -114,12 +121,17 @@ app.whenReady().then(() => {
   db = new Database();
   
   createWindow();
+  startPullRequestsPolling();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  if (prPollingInterval) clearInterval(prPollingInterval);
 });
 
 app.on('window-all-closed', () => {
@@ -860,6 +872,494 @@ ipcMain.handle('open-gitlab-web-login', async (event, customBaseUrl) => {
 
     authWindow.loadURL(loginUrl);
   });
+});
+
+// ========== PULL REQUESTS & MERGE REQUESTS (GITHUB & GITLAB) ==========
+
+let pullRequestsCache = {
+  timestamp: 0,
+  data: []
+};
+
+async function safeHttpGetJson(url, headers = {}) {
+  try {
+    const data = await httpGetJson(url, headers);
+    return { ok: true, status: 200, data };
+  } catch (err) {
+    const match = String(err.message || '').match(/HTTP (\d+)/);
+    const status = match ? parseInt(match[1], 10) : 500;
+    return { ok: false, status, error: err.message };
+  }
+}
+
+function parseAndInsertGitLabMr(mr, defaultRole, mrMap, baseUrl, userIdentifiers, fallbackProject = '') {
+  const key = mr.web_url || `gitlab:${mr.id}`;
+  const authorRawAvatar = mr.author?.avatar_url || mr.author?.avatar_path || mr.author?.avatarPath || '';
+  const assigneesList = mr.assignees || (mr.assignee ? [mr.assignee] : []);
+  const reviewersList = mr.reviewers || [];
+
+  let project = fallbackProject || '';
+  if (!project) {
+    if (mr.references?.full) {
+      project = mr.references.full.split('!')[0];
+    } else if (mr.web_url) {
+      const cleanUrl = mr.web_url.replace(baseUrl, '').replace(/^\//, '');
+      project = cleanUrl.split('/-/merge_requests/')[0];
+    }
+  }
+
+  const matchUser = (nameOrUser) => {
+    if (!nameOrUser) return false;
+    const n = nameOrUser.toLowerCase();
+    return userIdentifiers.some(id => id.toLowerCase() === n);
+  };
+
+  const isAuthor = Boolean(matchUser(mr.author?.username) || matchUser(mr.author?.name));
+  const isAssignee = Boolean(assigneesList.some(a => matchUser(a.username) || matchUser(a.name)));
+  const isReviewer = Boolean(reviewersList.some(r => matchUser(r.username) || matchUser(r.name)));
+
+  if (userIdentifiers.length && !isAuthor && !isAssignee && !isReviewer && !defaultRole) {
+    return;
+  }
+
+  if (!mrMap.has(key)) {
+    const roles = new Set();
+    if (defaultRole) roles.add(defaultRole);
+    if (isAuthor) roles.add('author');
+    if (isAssignee) roles.add('assignee');
+    if (isReviewer) roles.add('reviewer');
+    if (!roles.size) roles.add('author');
+
+    mrMap.set(key, {
+      provider: 'gitlab',
+      id: mr.iid || mr.id,
+      title: mr.title,
+      url: mr.web_url,
+      project,
+      state: mr.state,
+      draft: Boolean(mr.draft || mr.work_in_progress),
+      hasConflicts: Boolean(mr.has_conflicts),
+      sourceBranch: mr.source_branch || '',
+      targetBranch: mr.target_branch || '',
+      author: mr.author?.name || mr.author?.username || '',
+      authorAvatar: resolveGitLabAvatar(authorRawAvatar, baseUrl),
+      assignees: assigneesList.map(a => a.name || a.username || '').filter(Boolean).join(', '),
+      assigneeDetails: assigneesList.map(a => ({
+        name: a.name || a.username || '',
+        avatar: resolveGitLabAvatar(a.avatar_url || a.avatar_path || '', baseUrl)
+      })),
+      reviewers: reviewersList.map(r => r.name || r.username || '').filter(Boolean).join(', '),
+      reviewerDetails: reviewersList.map(r => ({
+        name: r.name || r.username || '',
+        avatar: resolveGitLabAvatar(r.avatar_url || r.avatar_path || '', baseUrl)
+      })),
+      labels: (mr.labels || []).map(name => ({ name: typeof name === 'string' ? name : name.name, color: name.color || '' })),
+      comments: mr.user_notes_count || 0,
+      createdAt: mr.created_at,
+      updatedAt: mr.updated_at,
+      roles
+    });
+  } else {
+    if (defaultRole) mrMap.get(key).roles.add(defaultRole);
+    if (isAuthor) mrMap.get(key).roles.add('author');
+    if (isAssignee) mrMap.get(key).roles.add('assignee');
+    if (isReviewer) mrMap.get(key).roles.add('reviewer');
+  }
+}
+
+async function fetchPullRequestsForConnection(connection) {
+  const token = decryptToken(connection.token);
+  if (!token) return [];
+
+  if (connection.provider === 'github') {
+    const detected = await getAuthenticatedUser('github', token);
+    const configuredUser = (connection.username || '').trim();
+    const userIdentifiers = [configuredUser, detected.username, detected.name].filter(Boolean);
+    const username = configuredUser || detected.username || detected.name || '';
+
+    const authHeaders = {
+      Accept: 'application/vnd.github.v3+json',
+      Authorization: `Bearer ${token}`
+    };
+
+    const prMap = new Map();
+
+    // 1. Probar primero búsqueda global
+    const searchQueries = [
+      { q: `is:pr state:open author:${username || '@me'}`, role: 'author' },
+      { q: `is:pr state:open assignee:${username || '@me'}`, role: 'assignee' },
+      { q: `is:pr state:open review-requested:${username || '@me'}`, role: 'reviewer' }
+    ];
+
+    let searchFailed403 = false;
+
+    await Promise.all(
+      searchQueries.map(async ({ q, role }) => {
+        const url = `https://api.github.com/search/issues?q=${encodeURIComponent(q)}&per_page=100`;
+        const res = await safeHttpGetJson(url, authHeaders);
+        if (res.status === 403) {
+          searchFailed403 = true;
+          return;
+        }
+        if (res.ok && res.data?.items) {
+          for (const item of res.data.items) {
+            const key = item.html_url || `github:${item.id}`;
+            if (!prMap.has(key)) {
+              const project = item.repository_url ? item.repository_url.replace(/^https:\/\/api\.github\.com\/repos\//, '') : '';
+              const assigneesList = (item.assignees && item.assignees.length) ? item.assignees : (item.assignee ? [item.assignee] : []);
+              prMap.set(key, {
+                provider: 'github',
+                id: item.number,
+                title: item.title,
+                url: item.html_url,
+                pullApiUrl: item.pull_request?.url || '',
+                project,
+                state: item.state,
+                draft: Boolean(item.draft),
+                hasConflicts: false,
+                author: item.user?.login || '',
+                authorAvatar: item.user?.avatar_url || '',
+                assignees: assigneesList.map(a => a.login).filter(Boolean).join(', '),
+                assigneeDetails: assigneesList.map(a => ({ name: a.login || '', avatar: a.avatar_url || '' })),
+                reviewers: '',
+                reviewerDetails: [],
+                labels: (item.labels || []).map(l => ({ name: l.name || l, color: l.color ? (l.color.startsWith('#') ? l.color : `#${l.color}`) : '' })),
+                comments: item.comments || 0,
+                createdAt: item.created_at,
+                updatedAt: item.updated_at,
+                roles: new Set([role]),
+                sourceBranch: '',
+                targetBranch: ''
+              });
+            } else {
+              prMap.get(key).roles.add(role);
+            }
+          }
+        }
+      })
+    );
+
+    // Enriquecer PRs de la búsqueda con información detallada (ramas head/base, reviewers y conflictos)
+    if (prMap.size > 0) {
+      await Promise.all(
+        Array.from(prMap.values()).map(async pr => {
+          if (!pr.sourceBranch || !pr.targetBranch) {
+            const pullUrl = pr.pullApiUrl || (pr.project ? `https://api.github.com/repos/${encodeURIComponent(pr.project).replace(/%2F/g, '/')}/pulls/${pr.id}` : '');
+            if (!pullUrl) return;
+
+            let pullRes = await safeHttpGetJson(pullUrl, authHeaders);
+            if (!pullRes.ok && (pullRes.status === 401 || pullRes.status === 403)) {
+              pullRes = await safeHttpGetJson(pullUrl, { ...authHeaders, Authorization: `token ${token}` });
+            }
+
+            if (pullRes.ok && pullRes.data) {
+              const p = pullRes.data;
+              pr.sourceBranch = p.head?.ref || pr.sourceBranch || '';
+              pr.targetBranch = p.base?.ref || pr.targetBranch || '';
+              pr.draft = Boolean(p.draft);
+              if (p.mergeable === false) pr.hasConflicts = true;
+              const revs = p.requested_reviewers || [];
+              if (revs.length) {
+                pr.reviewers = revs.map(r => r.login).filter(Boolean).join(', ');
+                pr.reviewerDetails = revs.map(r => ({ name: r.login || '', avatar: r.avatar_url || '' }));
+              }
+              if (p.comments !== undefined) {
+                pr.comments = (p.comments || 0) + (p.review_comments || 0);
+              }
+            }
+          }
+        })
+      );
+    }
+
+    // 2. Si la búsqueda global dio 403 (típico de tokens Fine-Grained o SSO de organización), fallback a nivel repositorio
+    if (searchFailed403 || prMap.size === 0) {
+      const configuredProjects = getProjectsList(connection.projects);
+      const allRepos = new Set(configuredProjects);
+
+      // Intentar descubrir repositorios accesibles por el token
+      const userReposRes = await safeHttpGetJson('https://api.github.com/user/repos?per_page=100&affiliation=owner,collaborator,organization_member', authHeaders);
+      if (userReposRes.ok && Array.isArray(userReposRes.data)) {
+        userReposRes.data.forEach(r => { if (r.full_name) allRepos.add(r.full_name); });
+      }
+
+      await Promise.all(
+        Array.from(allRepos).map(async repo => {
+          const pullsUrl = `https://api.github.com/repos/${encodeURIComponent(repo).replace(/%2F/g, '/')}/pulls?state=open&per_page=100`;
+          let pullsRes = await safeHttpGetJson(pullsUrl, authHeaders);
+          if (!pullsRes.ok && (pullsRes.status === 401 || pullsRes.status === 403)) {
+            pullsRes = await safeHttpGetJson(pullsUrl, { ...authHeaders, Authorization: `token ${token}` });
+          }
+          if (pullsRes.ok && Array.isArray(pullsRes.data)) {
+            for (const pull of pullsRes.data) {
+              const key = pull.html_url || `github:${pull.id}`;
+              const authorLogin = pull.user?.login || '';
+              const assigneesList = pull.assignees || (pull.assignee ? [pull.assignee] : []);
+              const reviewersList = pull.requested_reviewers || [];
+
+              const isAuthor = Boolean(userIdentifiers.some(u => u.toLowerCase() === authorLogin.toLowerCase()));
+              const isAssignee = Boolean(assigneesList.some(a => userIdentifiers.some(u => u.toLowerCase() === (a.login || '').toLowerCase())));
+              const isReviewer = Boolean(reviewersList.some(r => userIdentifiers.some(u => u.toLowerCase() === (r.login || '').toLowerCase())));
+
+              if (!userIdentifiers.length || isAuthor || isAssignee || isReviewer) {
+                const roles = new Set();
+                if (isAuthor) roles.add('author');
+                if (isAssignee) roles.add('assignee');
+                if (isReviewer) roles.add('reviewer');
+                if (!roles.size) roles.add('author');
+
+                prMap.set(key, {
+                  provider: 'github',
+                  id: pull.number,
+                  title: pull.title,
+                  url: pull.html_url,
+                  project: repo,
+                  state: pull.state,
+                  draft: Boolean(pull.draft),
+                  hasConflicts: false,
+                  sourceBranch: pull.head?.ref || '',
+                  targetBranch: pull.base?.ref || '',
+                  author: authorLogin,
+                  authorAvatar: pull.user?.avatar_url || '',
+                  assignees: assigneesList.map(a => a.login).filter(Boolean).join(', '),
+                  assigneeDetails: assigneesList.map(a => ({ name: a.login || '', avatar: a.avatar_url || '' })),
+                  reviewers: reviewersList.map(r => r.login).filter(Boolean).join(', '),
+                  reviewerDetails: reviewersList.map(r => ({ name: r.login || '', avatar: r.avatar_url || '' })),
+                  labels: (pull.labels || []).map(l => ({ name: l.name || l, color: l.color ? (l.color.startsWith('#') ? l.color : `#${l.color}`) : '' })),
+                  comments: (pull.comments || 0) + (pull.review_comments || 0),
+                  createdAt: pull.created_at,
+                  updatedAt: pull.updated_at,
+                  roles
+                });
+              }
+            }
+          }
+        })
+      );
+    }
+
+    return Array.from(prMap.values()).map(pr => {
+      const rolesArr = Array.from(pr.roles);
+      return {
+        ...pr,
+        roles: rolesArr,
+        isAuthor: rolesArr.includes('author'),
+        isAssignee: rolesArr.includes('assignee'),
+        isReviewer: rolesArr.includes('reviewer')
+      };
+    });
+  } else if (connection.provider === 'gitlab') {
+    const baseUrl = getGitLabBaseUrl(connection);
+    const detected = await getAuthenticatedUser('gitlab', token, baseUrl);
+    const configuredUser = (connection.username || '').trim();
+    const userIdentifiers = [configuredUser, detected.username, detected.name].filter(Boolean);
+    const username = configuredUser || detected.username || detected.name || '';
+
+    const glHeaders = { 'PRIVATE-TOKEN': token };
+    const mrMap = new Map();
+
+    // 1. Probar endpoints globales de GitLab
+    const globalEndpoints = [
+      { url: `${baseUrl}/api/v4/merge_requests?state=opened&scope=created_by_me&per_page=100`, defaultRole: 'author' },
+      { url: `${baseUrl}/api/v4/merge_requests?state=opened&scope=assigned_to_me&per_page=100`, defaultRole: 'assignee' }
+    ];
+    if (username) {
+      globalEndpoints.push({
+        url: `${baseUrl}/api/v4/merge_requests?state=opened&reviewer_username=${encodeURIComponent(username)}&per_page=100`,
+        defaultRole: 'reviewer'
+      });
+    }
+
+    let globalFailed403 = false;
+
+    await Promise.all(
+      globalEndpoints.map(async ({ url, defaultRole }) => {
+        const res = await safeHttpGetJson(url, glHeaders);
+        if (res.status === 403) {
+          globalFailed403 = true;
+          return;
+        }
+        if (res.ok && Array.isArray(res.data)) {
+          for (const mr of res.data) {
+            parseAndInsertGitLabMr(mr, defaultRole, mrMap, baseUrl, userIdentifiers);
+          }
+        }
+      })
+    );
+
+    // 2. Si el endpoint global dio 403 (habitual en instancias empresariales con visibilidad restringida), fallback a proyectos
+    if (globalFailed403 || mrMap.size === 0) {
+      const configuredProjects = getProjectsList(connection.projects);
+      const allProjects = new Set(configuredProjects);
+
+      // Intentar descubrir proyectos en los que el usuario es miembro
+      const memberProjectsRes = await safeHttpGetJson(`${baseUrl}/api/v4/projects?membership=true&per_page=100&min_access_level=10`, glHeaders);
+      if (memberProjectsRes.ok && Array.isArray(memberProjectsRes.data)) {
+        memberProjectsRes.data.forEach(p => {
+          if (p.path_with_namespace) allProjects.add(p.path_with_namespace);
+        });
+      }
+
+      await Promise.all(
+        Array.from(allProjects).map(async project => {
+          const url = `${baseUrl}/api/v4/projects/${encodeURIComponent(project)}/merge_requests?state=opened&per_page=100`;
+          const res = await safeHttpGetJson(url, glHeaders);
+          if (res.ok && Array.isArray(res.data)) {
+            for (const mr of res.data) {
+              parseAndInsertGitLabMr(mr, null, mrMap, baseUrl, userIdentifiers, project);
+            }
+          }
+        })
+      );
+    }
+
+    const allGitLabPRs = Array.from(mrMap.values()).map(pr => {
+      const rolesArr = Array.from(pr.roles);
+      return {
+        ...pr,
+        roles: rolesArr,
+        isAuthor: rolesArr.includes('author'),
+        isAssignee: rolesArr.includes('assignee'),
+        isReviewer: rolesArr.includes('reviewer')
+      };
+    });
+
+    // Enriquecer avatares con base64 para GitLab
+    const uniqueAvatarUrls = new Set();
+    allGitLabPRs.forEach(pr => {
+      if (pr.authorAvatar) uniqueAvatarUrls.add(pr.authorAvatar);
+      (pr.assigneeDetails || []).forEach(a => { if (a.avatar) uniqueAvatarUrls.add(a.avatar); });
+      (pr.reviewerDetails || []).forEach(r => { if (r.avatar) uniqueAvatarUrls.add(r.avatar); });
+    });
+
+    const avatarDataMap = new Map();
+    await Promise.all([...uniqueAvatarUrls].map(async url => {
+      const dataUrl = await fetchGitLabAvatarAsDataUrl(url, token, baseUrl);
+      avatarDataMap.set(url, dataUrl);
+    }));
+
+    allGitLabPRs.forEach(pr => {
+      if (pr.authorAvatar && avatarDataMap.has(pr.authorAvatar)) {
+        pr.authorAvatar = avatarDataMap.get(pr.authorAvatar);
+      }
+      (pr.assigneeDetails || []).forEach(a => {
+        if (a.avatar && avatarDataMap.has(a.avatar)) {
+          a.avatar = avatarDataMap.get(a.avatar);
+        }
+      });
+      (pr.reviewerDetails || []).forEach(r => {
+        if (r.avatar && avatarDataMap.has(r.avatar)) {
+          r.avatar = avatarDataMap.get(r.avatar);
+        }
+      });
+    });
+
+    return allGitLabPRs;
+  }
+
+  return [];
+}
+
+async function getAllExternalPullRequests(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && pullRequestsCache.timestamp && (now - pullRequestsCache.timestamp < 60000)) {
+    return pullRequestsCache.data;
+  }
+
+  const connections = db.getIssueConnections().map(c => db.getIssueConnection(c.provider)).filter(Boolean);
+  if (!connections.length) {
+    pullRequestsCache = { timestamp: now, data: [] };
+    return [];
+  }
+
+  const results = (await Promise.all(connections.map(fetchPullRequestsForConnection))).flat();
+  results.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+
+  pullRequestsCache = { timestamp: now, data: results };
+  return results;
+}
+
+let previousPrIds = new Set();
+let prPollingInterval = null;
+
+async function checkPullRequestsInBackground() {
+  try {
+    const connections = db?.getIssueConnections ? db.getIssueConnections().map(c => db.getIssueConnection(c.provider)).filter(Boolean) : [];
+    if (!connections.length) return;
+
+    const results = await getAllExternalPullRequests(true);
+    const count = results.length;
+
+    const currentIds = new Set(results.map(r => r.url || `${r.provider}:${r.id}`));
+
+    // Si ya teníamos PRs rastreadas previamente y detectamos alguna nueva, notificar
+    if (previousPrIds.size > 0) {
+      const brandNew = results.filter(r => !previousPrIds.has(r.url || `${r.provider}:${r.id}`));
+      if (brandNew.length > 0 && Notification.isSupported()) {
+        try {
+          const first = brandNew[0];
+          const notifTitle = brandNew.length === 1
+            ? `Nueva PR/MR: ${truncateText(first.title, 35)}`
+            : `${brandNew.length} nuevas PRs / MRs`;
+          const notifBody = brandNew.length === 1
+            ? `${first.project || first.provider} · Autor: ${first.author || 'desconocido'}`
+            : `Tienes ${brandNew.length} nuevas Pull Requests o Merge Requests pendientes.`;
+
+          const notif = new Notification({
+            title: notifTitle,
+            body: notifBody,
+            icon: path.join(__dirname, 'assets', 'icons', 'icon.png')
+          });
+          notif.on('click', () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              if (mainWindow.isMinimized()) mainWindow.restore();
+              mainWindow.focus();
+              mainWindow.loadFile('src/renderer/pull-requests.html');
+            }
+          });
+          notif.show();
+        } catch (_) {}
+      }
+    }
+
+    previousPrIds = currentIds;
+
+    // Enviar evento a la ventana principal para actualizar badge y listas en vivo
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+      mainWindow.webContents.send('pull-requests-updated', { count, results });
+    }
+  } catch (err) {
+    // Silencioso en segundo plano
+  }
+}
+
+function startPullRequestsPolling() {
+  if (prPollingInterval) clearInterval(prPollingInterval);
+  // Primera comprobación a los 12 segundos para poblar previousPrIds y actualizar badge
+  setTimeout(() => {
+    checkPullRequestsInBackground();
+  }, 12000);
+  // Intervalo periódico cada 3 minutos (180.000 ms)
+  prPollingInterval = setInterval(() => {
+    checkPullRequestsInBackground();
+  }, 180000);
+}
+
+ipcMain.handle('get-external-pull-requests', async () => {
+  const results = await getAllExternalPullRequests(true);
+  previousPrIds = new Set(results.map(r => r.url || `${r.provider}:${r.id}`));
+  if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
+    mainWindow.webContents.send('pull-requests-updated', { count: results.length, results });
+  }
+  return results;
+});
+
+ipcMain.handle('get-pull-requests-count', async () => {
+  const prs = await getAllExternalPullRequests(false);
+  if (previousPrIds.size === 0 && prs.length > 0) {
+    previousPrIds = new Set(prs.map(r => r.url || `${r.provider}:${r.id}`));
+  }
+  return prs.length;
 });
 
 // ========== EXPORTACIÓN DE ISSUES (XLSX Y SVG) ==========

@@ -476,6 +476,8 @@ textarea.form-control.auto-resize {
 .issue-card-role-badge--reporter { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color); }
 .issue-card-role-badge--assignee { background: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.28); }
 [data-theme="dark"] .issue-card-role-badge--assignee { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+.issue-card-role-badge--reviewer { background: rgba(245, 158, 11, 0.14); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); }
+[data-theme="dark"] .issue-card-role-badge--reviewer { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
 .issue-card-person-pill { display: inline-flex; align-items: center; gap: 0.3rem; min-width: 0; overflow: hidden; }
 .issue-card-person-name { color: var(--text-primary); font-size: 0.73rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
 .issue-card-assignees-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-width: 0; }
@@ -3467,6 +3469,23 @@ textarea.form-control.auto-resize {
   display: inline-flex;
 }
 
+.nav-badge--left {
+  margin-left: 0;
+  margin-right: 0.5rem;
+  background-color: #6366f1;
+  box-shadow: 0 1px 3px rgba(99, 102, 241, 0.4);
+}
+
+@keyframes badgePulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.nav-badge--pulse {
+  animation: badgePulse 0.4s ease-in-out 3;
+}
+
 /* ========== TODAY ALERT ========== */
 
 .today-alert {
@@ -3531,4 +3550,374 @@ textarea.form-control.auto-resize {
   font-size: 0.75rem;
   white-space: nowrap;
   color: var(--text-secondary);
+}
+
+/* ========== PULL REQUESTS & MERGE REQUESTS STYLES ========== */
+
+.pull-requests-page {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  overflow-y: auto;
+  height: calc(100vh - 32px - 65px);
+}
+
+.pr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pr-role-filters {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.pr-role-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pr-role-btn.active {
+  background-color: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+}
+
+.pr-role-count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.38rem;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.1);
+  line-height: 1.2;
+}
+
+.pr-role-btn.active .pr-role-count {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.pr-filters-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(160px, 1fr) minmax(160px, 1fr);
+  gap: 0.65rem;
+}
+
+.pr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pr-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pr-card:hover {
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow);
+}
+
+.pr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.pr-card-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pr-card-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pr-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.pr-card-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  line-height: 1.35;
+  transition: color 0.15s;
+}
+
+.pr-card-title:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.pr-number {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.pr-project-pill {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-role-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.pr-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  line-height: 1.2;
+}
+
+.pr-role-badge svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.pr-role-badge--reviewer {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+[data-theme="dark"] .pr-role-badge--reviewer {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.pr-role-badge--author {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+[data-theme="dark"] .pr-role-badge--author {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pr-role-badge--assignee {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+[data-theme="dark"] .pr-role-badge--assignee {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.pr-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(107, 114, 128, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 0.12rem 0.42rem;
+  border-radius: 4px;
+}
+
+.pr-draft-badge svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.pr-conflict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  padding: 0.12rem 0.42rem;
+  border-radius: 4px;
+}
+
+.pr-conflict-badge svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.pr-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+.pr-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.pr-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.74rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.18rem 0.5rem;
+  border-radius: 4px;
+  color: var(--text-primary);
+  max-width: 100%;
+}
+
+.pr-branch-pill svg {
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.pr-branch-name {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pr-branch-name--unknown {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.pr-branch-arrow {
+  color: var(--text-secondary);
+  font-weight: 700;
+  margin: 0 0.1rem;
+}
+
+.pr-comments-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  padding: 0.18rem 0.45rem;
+  border-radius: 4px;
+}
+
+.pr-comments-pill svg {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.pr-card .issue-card-people {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pr-card .issue-card-person-name {
+  max-width: 180px;
+}
+
+.pr-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pr-empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.pr-empty-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.pr-empty-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  max-width: 450px;
+}
+
+@media (max-width: 800px) {
+  .pr-filters-row {
+    grid-template-columns: 1fr;
+  }
+  .pr-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

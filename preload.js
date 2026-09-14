@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('api', {
   deleteExternalIssueLabelRule: (provider, label) => ipcRenderer.invoke('delete-external-issue-label-rule', provider, label),
   openGitLabWebLogin: (baseUrl) => ipcRenderer.invoke('open-gitlab-web-login', baseUrl),
   exportIssues: (payload) => ipcRenderer.invoke('export-issues', payload),
+  getExternalPullRequests: () => ipcRenderer.invoke('get-external-pull-requests'),
+  getPullRequestsCount: () => ipcRenderer.invoke('get-pull-requests-count'),
+  onPullRequestsUpdated: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on('pull-requests-updated', listener);
+    return () => ipcRenderer.removeListener('pull-requests-updated', listener);
+  },
 
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),
