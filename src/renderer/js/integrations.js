@@ -36,6 +36,32 @@
   const providerIcon = provider => provider === 'gitlab'
     ? `<svg class="issue-provider-icon issue-provider-icon--gitlab" viewBox="0 0 36 36" aria-label="GitLab"><path d="M18 32.2 30.5 18 25.6 4.7H10.4L5.5 18 18 32.2Z" fill="currentColor"/><path d="m10.4 4.7 3.2 13.1L18 32.2l4.4-14.4 3.2-13.1" fill="none" stroke="var(--bg-secondary)" stroke-width="1.8" stroke-linejoin="round"/></svg>`
     : `<svg class="issue-provider-icon issue-provider-icon--github" viewBox="0 0 16 16" aria-label="GitHub"><path fill="currentColor" d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.49c-2.01.44-2.43-.85-2.43-.85-.33-.84-.81-1.06-.81-1.06-.66-.46.05-.45.05-.45.73.05 1.12.75 1.12.75.65 1.11 1.7.79 2.11.6.07-.47.25-.79.46-.97-1.61-.18-3.3-.8-3.3-3.59 0-.79.28-1.44.75-1.95-.08-.18-.33-.92.07-1.93 0 0 .61-.2 2 .75A6.9 6.9 0 0 1 8 4.8c.61 0 1.22.08 1.79.24 1.39-.95 2-.75 2-.75.4 1.01.15 1.75.07 1.93.47.51.75 1.16.75 1.95 0 2.8-1.7 3.41-3.31 3.59.26.22.49.65.49 1.31v1.94c0 .21.14.45.55.38A8 8 0 0 0 8 0Z"/></svg>`;
+  const avatarMarkup = (url, name = '', size = 20, className = '') => {
+    const initial = (name || '?').trim().charAt(0).toUpperCase();
+    const titleAttr = name ? ` title="${escapeHtml(name)}"` : '';
+    const classAttr = className ? ` ${className}` : '';
+    if (url) {
+      return `<span class="issue-avatar-wrapper${classAttr}" style="--avatar-size: ${size}px;"${titleAttr}><img class="issue-user-avatar" src="${escapeHtml(url)}" alt="${escapeHtml(name)}" width="${size}" height="${size}" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline-flex';"><span class="issue-user-avatar-fallback" style="display:none;width:${size}px;height:${size}px;font-size:${Math.max(10, Math.floor(size * 0.55))}px;">${escapeHtml(initial)}</span></span>`;
+    }
+    if (name) {
+      return `<span class="issue-avatar-wrapper${classAttr}" style="--avatar-size: ${size}px;"${titleAttr}><span class="issue-user-avatar-fallback" style="width:${size}px;height:${size}px;font-size:${Math.max(10, Math.floor(size * 0.55))}px;">${escapeHtml(initial)}</span></span>`;
+    }
+    return '';
+  };
+  const assigneesMarkup = issue => {
+    if (issue.assigneeDetails && issue.assigneeDetails.length) {
+      return `<div class="issue-assignees-cell">${issue.assigneeDetails.map(assignee => `
+        <span class="issue-assignee-badge" title="${escapeHtml(assignee.name)}">
+          ${avatarMarkup(assignee.avatar, assignee.name, 18, 'issue-assignee-avatar')}
+          <span class="issue-assignee-name">${escapeHtml(assignee.name)}</span>
+        </span>
+      `).join('')}</div>`;
+    }
+    if (issue.assignees) {
+      return `<span class="issue-assignee-text">${escapeHtml(issue.assignees)}</span>`;
+    }
+    return `<span class="issue-unassigned">Sin asignar</span>`;
+  };
   const statusOptions = status => STATUS_COLUMNS.map(column => `<option value="${column.id}" ${status === column.id ? 'selected' : ''}>${column.label}</option>`).join('');
 
   function openSettings() { settingsModal.classList.add('active'); settingsModal.setAttribute('aria-hidden', 'false'); }
@@ -87,7 +113,11 @@
 
   function getVisibleIssues() {
     const needle = filters.search.value.trim().toLocaleLowerCase('es');
+    const selectedProvider = providerSelect?.value;
     return allIssues.filter(issue => {
+      if (selectedProvider && selectedProvider !== 'all' && issue.provider !== selectedProvider) {
+        return false;
+      }
       const haystack = [issue.id, issue.title, issue.author, issue.assignees, issue.project, issue.milestone, ...issue.labels.map(labelName)].join(' ').toLocaleLowerCase('es');
       return (!needle || haystack.includes(needle)) && (!filters.project.value || issue.project === filters.project.value) &&
         (!filters.assignee.value || issue.assignees.split(', ').includes(filters.assignee.value)) && (!filters.label.value || issue.labels.some(label => labelName(label) === filters.label.value));
@@ -103,14 +133,42 @@
         const selected = labelRules.some(rule => rule.provider === label.provider && rule.label === label.name && rule.status === column.id);
         return `<label class="kanban-label-option"><input class="column-label-checkbox" type="checkbox" data-provider="${escapeHtml(label.provider)}" data-label="${escapeHtml(label.name)}" data-status="${column.id}" ${selected ? 'checked' : ''}><span class="issue-provider ${label.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${label.provider === 'github' ? 'GitHub' : 'GitLab'}</span>${labelMarkup({ name: label.name, color: label.color })}</label>`;
       }).join('') || '<span class="field-hint">Actualiza las issues para ver etiquetas.</span>';
-      return `<section class="issue-kanban-column" data-status="${column.id}"><header><h4>${column.label}</h4><div><span>${cards.length}</span><button class="kanban-column-settings" type="button" title="Configurar etiquetas" data-status="${column.id}">⚙</button></div></header><div class="kanban-column-rule-panel" hidden><p>Etiquetas que irán a esta columna:</p>${selectors}</div><div class="issue-kanban-cards" data-status="${column.id}">${cards.map(issue => `<article class="issue-kanban-card"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div></article>`).join('')}</div></section>`;
+      return `<section class="issue-kanban-column" data-status="${column.id}"><header><h4>${column.label}</h4><div><span>${cards.length}</span><button class="kanban-column-settings" type="button" title="Configurar etiquetas" data-status="${column.id}">⚙</button></div></header><div class="kanban-column-rule-panel" hidden><p>Etiquetas que irán a esta columna:</p>${selectors}</div><div class="issue-kanban-cards" data-status="${column.id}">${cards.map(issue => {
+        const reporterHtml = issue.author ? `
+          <div class="issue-card-person-row">
+            <span class="issue-card-role-badge issue-card-role-badge--reporter" title="Creador / Reporter de la issue">Reporter</span>
+            <div class="issue-card-person-pill" title="Reporter: ${escapeHtml(issue.author)}">
+              ${avatarMarkup(issue.authorAvatar, issue.author, 16, 'issue-card-avatar')}
+              <span class="issue-card-person-name">${escapeHtml(issue.author)}</span>
+            </div>
+          </div>` : '';
+        const assigneeList = (issue.assigneeDetails && issue.assigneeDetails.length)
+          ? issue.assigneeDetails
+          : (issue.assignees ? issue.assignees.split(', ').filter(Boolean).map(name => ({ name, avatar: '' })) : []);
+        const assigneesHtml = `
+          <div class="issue-card-person-row">
+            <span class="issue-card-role-badge issue-card-role-badge--assignee" title="Asignados / Participantes de la issue">${assigneeList.length > 1 ? 'Asignados' : 'Asignado'}</span>
+            ${assigneeList.length ? `
+              <div class="issue-card-assignees-group">
+                ${assigneeList.map(a => `
+                  <div class="issue-card-person-pill" title="Asignado: ${escapeHtml(a.name)}">
+                    ${avatarMarkup(a.avatar, a.name, 16, 'issue-card-avatar')}
+                    <span class="issue-card-person-name">${escapeHtml(a.name)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `<span class="issue-card-unassigned">Sin asignar</span>`}
+          </div>`;
+        const peopleHtml = `<div class="issue-card-people">${reporterHtml}${assigneesHtml}</div>`;
+        return `<article class="issue-kanban-card"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div>${peopleHtml}</article>`;
+      }).join('')}</div></section>`;
     }).join('');
   }
 
   function renderIssues() {
     const visible = getVisibleIssues();
     feedback.textContent = allIssues.length ? `${visible.length} de ${allIssues.length} issues abiertas.` : 'No hay issues abiertas para los filtros indicados.';
-    issuesList.innerHTML = visible.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">por ${escapeHtml(issue.author || '—')}</span></td><td>${escapeHtml(issue.project)}</td><td>${escapeHtml(issue.assignees || 'Sin asignar')}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
+    issuesList.innerHTML = visible.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
     renderKanban(visible);
   }
 
@@ -127,7 +185,7 @@
   async function loadAllIssues() {
     if (!connections.length) return;
     refreshButton.disabled = true; refreshButton.textContent = 'Consultando…'; feedback.textContent = 'Consultando issues abiertas…'; feedback.className = 'issues-feedback';
-    try { const [issues] = await Promise.all([window.api.getExternalIssues('all'), loadAvailableLabels()]); allIssues = issues; populateFilters(); renderIssues(); }
+    try { const [issues] = await Promise.all([window.api.getExternalIssues(providerSelect?.value || 'all'), loadAvailableLabels()]); allIssues = issues; populateFilters(); renderIssues(); }
     catch (error) { feedback.textContent = error.message || 'No se pudieron cargar las issues.'; feedback.className = 'issues-feedback issues-feedback--error'; }
     finally { refreshButton.disabled = false; refreshButton.textContent = 'Actualizar issues'; }
   }
@@ -137,6 +195,7 @@
   settingsModal.addEventListener('click', event => { if (event.target === settingsModal) closeSettings(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeSettings(); });
   Object.values(filters).forEach(filter => filter.addEventListener(filter === filters.search ? 'input' : 'change', renderIssues));
+  if (providerSelect) providerSelect.addEventListener('change', renderIssues);
   document.querySelectorAll('.issue-view-btn').forEach(button => button.addEventListener('click', () => {
     currentView = button.dataset.view;
     tableView.hidden = currentView !== 'table';
@@ -175,6 +234,33 @@
     } catch (error) { feedback.textContent = error.message || 'No se pudo guardar la conexión.'; feedback.className = 'issues-feedback issues-feedback--error'; }
     finally { submit.disabled = false; submit.textContent = 'Guardar conexión'; }
   }));
+
+  const webSessionBtn = document.getElementById('openGitLabWebSession');
+  if (webSessionBtn) {
+    webSessionBtn.addEventListener('click', async () => {
+      const form = webSessionBtn.closest('form');
+      const baseUrl = form?.baseUrl?.value?.trim() || '';
+      webSessionBtn.disabled = true;
+      webSessionBtn.textContent = 'Abriendo…';
+      try {
+        const result = await window.api.openGitLabWebLogin(baseUrl);
+        if (result?.success) {
+          feedback.textContent = 'Sesión web vinculada con éxito. Actualizando avatares…';
+          feedback.className = 'issues-feedback issues-feedback--success';
+        } else {
+          feedback.textContent = 'Ventana de sesión cerrada. Comprobando avatares…';
+          feedback.className = 'issues-feedback';
+        }
+        await loadAllIssues();
+      } catch (error) {
+        feedback.textContent = error.message || 'No se pudo abrir la sesión web de GitLab.';
+        feedback.className = 'issues-feedback issues-feedback--error';
+      } finally {
+        webSessionBtn.disabled = false;
+        webSessionBtn.textContent = 'Sesión web (Avatares)';
+      }
+    });
+  }
 
   document.querySelectorAll('.disconnect-btn').forEach(button => button.addEventListener('click', async () => {
     const provider = button.closest('.integration-card').dataset.provider;

@@ -392,7 +392,7 @@ textarea.form-control.auto-resize {
 .integration-form { display: grid; gap: 0.85rem; margin-top: 1rem; }
 .integration-form label { display: grid; gap: 0.35rem; font-size: 0.82rem; font-weight: 500; }
 .integration-form textarea { resize: vertical; min-height: 74px; }
-.integration-actions { margin-top: 0.15rem; }
+.integration-actions { margin-top: 0.15rem; flex-wrap: wrap; }
 .field-hint { color: var(--text-secondary); font-weight: 400; }
 .external-link { color: var(--primary-color); }
 
@@ -420,7 +420,16 @@ textarea.form-control.auto-resize {
 .issue-provider-with-icon .issue-provider-icon { width: 12px; height: 12px; flex-basis: 12px; }
 .issue-provider--gitlab { color: #9a3412; background: #ffedd5; border-color: #fdba74; }
 .issue-labels .issue-label--colored { background: var(--issue-label-color); border-color: var(--issue-label-color); color: #fff; }
-.issue-author { display: block; color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.3rem; }
+.issue-author { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.35rem; }
+.issue-table-reporter-label { font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary); }
+.issue-avatar-wrapper { display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; flex-shrink: 0; line-height: 1; }
+.issue-user-avatar { width: var(--avatar-size, 20px); height: var(--avatar-size, 20px); border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 1px solid var(--border-color); }
+.issue-user-avatar-fallback { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg-primary); color: var(--text-secondary); font-weight: 600; text-transform: uppercase; user-select: none; line-height: 1; flex-shrink: 0; border: 1px solid var(--border-color); }
+.issue-assignees-cell { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.issue-assignee-badge { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.12rem 0.45rem 0.12rem 0.2rem; font-size: 0.75rem; }
+.issue-assignee-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.issue-assignee-text { color: var(--text-primary); font-size: 0.8rem; }
+.issue-unassigned { color: var(--text-secondary); font-style: italic; font-size: 0.75rem; }
 .issues-table-wrap { overflow-x: auto; border: 1px solid var(--border-color); border-radius: 0.375rem; }
 [hidden] { display: none !important; }
 .issues-table { width: 100%; border-collapse: collapse; min-width: 1050px; font-size: 0.8rem; }
@@ -451,6 +460,16 @@ textarea.form-control.auto-resize {
 .issue-provider-icon--github { color: var(--text-primary); }
 .issue-provider-icon--gitlab { color: #fc6d26; }
 .issue-kanban-card .issue-labels { margin: 0; gap: 0.3rem; }
+.issue-card-people { margin-top: 0.65rem; padding-top: 0.45rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.35rem; }
+.issue-card-person-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; min-width: 0; }
+.issue-card-role-badge { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; line-height: 1.2; }
+.issue-card-role-badge--reporter { background: var(--bg-primary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.issue-card-role-badge--assignee { background: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.28); }
+[data-theme="dark"] .issue-card-role-badge--assignee { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.35); }
+.issue-card-person-pill { display: inline-flex; align-items: center; gap: 0.3rem; min-width: 0; overflow: hidden; }
+.issue-card-person-name { color: var(--text-primary); font-size: 0.73rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
+.issue-card-assignees-group { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-width: 0; }
+.issue-card-unassigned { color: var(--text-secondary); font-style: italic; font-size: 0.72rem; }
 
 .issue-settings-modal { display: none; position: fixed; z-index: 1000; inset: 0; padding: 4rem 1.5rem 1.5rem; background: rgba(0, 0, 0, 0.5); overflow-y: auto; }
 .issue-settings-modal.active { display: block; }

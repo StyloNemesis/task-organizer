@@ -1,6 +1,15 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, session } = require('electron');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 const Database = require('./src/database/db');
+
+// Permitir certificados internos o corporativos para instancias privadas de GitLab
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  event.preventDefault();
+  callback(true);
+});
 
 // Habilitar recarga automática en modo desarrollo
 if (process.argv.includes('--dev')) {
@@ -12,6 +21,15 @@ if (process.argv.includes('--dev')) {
 
 let mainWindow;
 let db;
+
+function getGitLabBaseUrl(connection) {
+  let baseUrl = (connection?.base_url || 'https://gitlab.com').trim().replace(/\/$/, '');
+  if (!baseUrl) baseUrl = 'https://gitlab.com';
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = `https://${baseUrl}`;
+  }
+  return baseUrl;
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,6 +45,30 @@ function createWindow() {
   });
 
   mainWindow.loadFile('src/renderer/index.html');
+
+  // Interceptar peticiones a GitLab para adjuntar token si fuera necesario
+  session.defaultSession.webRequest.onBeforeSendHeaders((details, callback) => {
+    const requestHeaders = { ...details.requestHeaders };
+    try {
+      // No inyectar PRIVATE-TOKEN en navegaciones de página (login, OAuth, etc.)
+      if (details.resourceType !== 'mainFrame' && details.resourceType !== 'subFrame') {
+        const connection = db?.getIssueConnection?.('gitlab');
+        if (connection && connection.token) {
+          const baseUrl = getGitLabBaseUrl(connection);
+          const parsedReq = new URL(details.url);
+          const parsedBase = new URL(baseUrl);
+          if (parsedReq.hostname === parsedBase.hostname || (parsedReq.hostname === 'gitlab.com' && details.url.includes('/uploads/'))) {
+            const token = decryptToken(connection.token);
+            if (token) {
+              requestHeaders['PRIVATE-TOKEN'] = token;
+              delete requestHeaders['Authorization'];
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    callback({ requestHeaders });
+  });
 
   // Abrir DevTools en modo desarrollo
   if (process.argv.includes('--dev')) {
@@ -222,9 +264,225 @@ async function getProjectLabels(connection, project) {
     return labels.map(label => ({ provider: 'github', name: label.name, color: label.color || '' }));
   }
   headers['PRIVATE-TOKEN'] = token;
-  const baseUrl = (connection.base_url || 'https://gitlab.com').replace(/\/$/, '');
+  const baseUrl = getGitLabBaseUrl(connection);
   const labels = await fetchAllLabelPages(`${baseUrl}/api/v4/projects/${encodeURIComponent(project)}/labels`, headers, 'gitlab', project);
   return labels.map(label => ({ provider: 'gitlab', name: label.name, color: label.color || '' }));
+}
+
+function resolveGitLabAvatar(rawUrl, baseUrl) {
+  if (!rawUrl) return '';
+  let cleanUrl = String(rawUrl).trim();
+  if (!cleanUrl) return '';
+
+  const normalizedBase = getGitLabBaseUrl({ base_url: baseUrl });
+  const isUploadPath = cleanUrl.includes('/uploads/') || cleanUrl.includes('/avatar/') || cleanUrl.includes('/system/user/');
+
+  // Si es una ruta relativa o protocol-relative
+  if (cleanUrl.startsWith('//')) {
+    cleanUrl = `https:${cleanUrl}`;
+  } else if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    return `${normalizedBase}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
+  }
+
+  try {
+    const parsedUrl = new URL(cleanUrl);
+    const parsedBase = new URL(normalizedBase);
+
+    // Si es un servicio externo como Gravatar o Libravatar (y no es una ruta de uploads)
+    const isExternalGravatar = (parsedUrl.hostname.includes('gravatar.com') || parsedUrl.hostname.includes('libravatar.org')) && !cleanUrl.includes('/uploads/');
+    if (isExternalGravatar) {
+      return cleanUrl;
+    }
+
+    // Para cualquier avatar de GitLab (subido, assets o devuelto con localhost, gitlab.com, etc.),
+    // redirigirlo obligatoriamente a la URL del servidor GitLab configurado por el usuario
+    if (isUploadPath || parsedUrl.hostname !== 'gitlab.com' || parsedBase.hostname !== 'gitlab.com') {
+      parsedUrl.protocol = parsedBase.protocol;
+      parsedUrl.hostname = parsedBase.hostname;
+      parsedUrl.port = parsedBase.port;
+      return parsedUrl.toString();
+    }
+  } catch (_) {}
+
+  return cleanUrl;
+}
+
+function isGitLabUploadUrl(url, baseUrl) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('gravatar.com') || parsed.hostname.includes('libravatar.org')) {
+      return false;
+    }
+    const parsedBase = new URL(baseUrl);
+    if (parsed.hostname === parsedBase.hostname) {
+      return true;
+    }
+  } catch (_) {
+    if (url.startsWith('/')) return true;
+  }
+  return url.includes('/uploads/') || url.includes('/system/user/avatar/');
+}
+
+async function getCookiesForUrl(targetUrl) {
+  try {
+    if (session?.defaultSession?.cookies) {
+      const cookies = await session.defaultSession.cookies.get({ url: targetUrl });
+      if (cookies && cookies.length) {
+        return cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      }
+    }
+  } catch (_) {}
+  return '';
+}
+
+async function downloadGitLabImage(url, token, maxRedirects = 5, attempt = 'header', customCookies = null) {
+  let cookieHeader = customCookies;
+  if (cookieHeader === null) {
+    cookieHeader = await getCookiesForUrl(url);
+  }
+
+  return new Promise((resolve, reject) => {
+    if (maxRedirects <= 0) return reject(new Error('Demasiadas redirecciones'));
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (e) {
+      return reject(e);
+    }
+    const lib = parsed.protocol === 'http:' ? http : https;
+    const reqHeaders = {
+      Accept: 'image/*, */*',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    };
+
+    if (cookieHeader) {
+      reqHeaders['Cookie'] = cookieHeader;
+    }
+
+    // Usar exclusivamente PRIVATE-TOKEN (NUNCA Authorization: Bearer para Personal Access Tokens)
+    if (token && attempt === 'header') {
+      reqHeaders['PRIVATE-TOKEN'] = token;
+    }
+
+    const req = lib.get(url, { headers: reqHeaders, rejectUnauthorized: false }, res => {
+      // Seguir redirecciones
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        let nextUrl = res.headers.location;
+        if (!nextUrl.startsWith('http://') && !nextUrl.startsWith('https://')) {
+          nextUrl = new URL(nextUrl, url).toString();
+        }
+        res.resume();
+        return downloadGitLabImage(nextUrl, token, maxRedirects - 1, attempt, cookieHeader).then(resolve).catch(reject);
+      }
+
+      // Si devuelve 401 o 403:
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        res.resume();
+        // Fallback 1: Si falló con cabecera PRIVATE-TOKEN, probar con parámetro URL ?private_token=
+        if (token && attempt === 'header' && !url.includes('private_token=')) {
+          const sep = url.includes('?') ? '&' : '?';
+          const paramUrl = `${url}${sep}private_token=${encodeURIComponent(token)}`;
+          return downloadGitLabImage(paramUrl, null, maxRedirects - 1, 'param', cookieHeader).then(resolve).catch(reject);
+        }
+        // Fallback 2: Probar petición anónima si el recurso es público
+        if (attempt !== 'anonymous') {
+          const cleanUrl = url.replace(/([?&])private_token=[^&]+(&|$)/, '$1').replace(/[?&]$/, '');
+          return downloadGitLabImage(cleanUrl, null, maxRedirects - 1, 'anonymous', cookieHeader).then(resolve).catch(reject);
+        }
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+
+      const contentType = res.headers['content-type'] || 'image/png';
+      // Si la respuesta es HTML (ej. redirigido a formulario de login)
+      if (!contentType.startsWith('image/')) {
+        res.resume();
+        if (token && attempt === 'header' && !url.includes('private_token=')) {
+          const sep = url.includes('?') ? '&' : '?';
+          const paramUrl = `${url}${sep}private_token=${encodeURIComponent(token)}`;
+          return downloadGitLabImage(paramUrl, null, maxRedirects - 1, 'param', cookieHeader).then(resolve).catch(reject);
+        }
+        return reject(new Error(`No es imagen: ${contentType}`));
+      }
+
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        const buffer = Buffer.concat(chunks);
+        resolve({ buffer, contentType });
+      });
+      res.on('error', reject);
+    });
+
+    req.on('error', reject);
+    req.setTimeout(8000, () => {
+      req.destroy();
+      reject(new Error('Timeout al descargar imagen'));
+    });
+  });
+}
+
+const gitlabAvatarCache = new Map();
+
+async function fetchGitLabAvatarAsDataUrl(url, token, baseUrl) {
+  if (!url) return '';
+  if (gitlabAvatarCache.has(url)) return gitlabAvatarCache.get(url);
+  if (!isGitLabUploadUrl(url, baseUrl)) return url;
+
+  // Probar primero con la versión escalada (?width=48) que usa GitLab web, y después la URL original
+  const urlsToTry = [];
+  if (!url.includes('width=') && (url.includes('/uploads/') || url.includes('/system/user/avatar/'))) {
+    const sep = url.includes('?') ? '&' : '?';
+    urlsToTry.push(`${url}${sep}width=48`);
+  }
+  urlsToTry.push(url);
+
+  for (const targetUrl of urlsToTry) {
+    try {
+      const { buffer, contentType } = await downloadGitLabImage(targetUrl, token);
+      const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
+      gitlabAvatarCache.set(url, dataUrl);
+      return dataUrl;
+    } catch (_) {}
+  }
+
+  // Fallback con fetch estándar usando exclusivamente PRIVATE-TOKEN y cookies
+  for (const targetUrl of urlsToTry) {
+    try {
+      const headers = { Accept: 'image/*, */*' };
+      if (token) {
+        headers['PRIVATE-TOKEN'] = token;
+      }
+      const cookieStr = await getCookiesForUrl(targetUrl);
+      if (cookieStr) {
+        headers['Cookie'] = cookieStr;
+      }
+      let res = await fetch(targetUrl, { headers });
+      if (!res.ok && (res.status === 401 || res.status === 403) && token) {
+        const sep = targetUrl.includes('?') ? '&' : '?';
+        res = await fetch(`${targetUrl}${sep}private_token=${encodeURIComponent(token)}`, { headers: { Accept: 'image/*, */*' } });
+      }
+      if (res.ok) {
+        const contentType = res.headers.get('content-type') || 'image/png';
+        if (contentType.startsWith('image/')) {
+          const buffer = Buffer.from(await res.arrayBuffer());
+          const dataUrl = `data:${contentType};base64,${buffer.toString('base64')}`;
+          gitlabAvatarCache.set(url, dataUrl);
+          return dataUrl;
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Si no se puede descargar (ej. GitLab 401 por requerir sesión web para avatares subidos),
+  // guardar cadena vacía para que el frontend dibuje el avatar inicial estilizado sin producir errores 401 en consola
+  gitlabAvatarCache.set(url, '');
+  return '';
 }
 
 async function requestIssues(connection) {
@@ -242,17 +500,25 @@ async function requestIssues(connection) {
       const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(project).replace(/%2F/g, '/')}/issues?${query}`, { headers });
       if (!response.ok) throw new Error(await issueRequestError(response, 'github', project));
       const issues = await response.json();
-      return issues.filter(issue => !issue.pull_request).map(issue => ({
-        provider: 'github', project, id: issue.number, title: issue.title,
-        url: issue.html_url, state: issue.state, author: issue.user?.login || '',
-        assignees: (issue.assignees || []).map(user => user.login).join(', '),
-        updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.comments || 0,
-        milestone: issue.milestone?.title || '', dueDate: issue.milestone?.due_on || '',
-        labels: (issue.labels || []).map(label => ({ name: label.name || label, color: label.color || '' }))
-      }));
+      return issues.filter(issue => !issue.pull_request).map(issue => {
+        const assigneesList = (issue.assignees && issue.assignees.length) ? issue.assignees : (issue.assignee ? [issue.assignee] : []);
+        return {
+          provider: 'github', project, id: issue.number, title: issue.title,
+          url: issue.html_url, state: issue.state, author: issue.user?.login || '',
+          authorAvatar: issue.user?.avatar_url || '',
+          assignees: assigneesList.map(user => user.login).filter(Boolean).join(', '),
+          assigneeDetails: assigneesList.map(user => ({
+            name: user.login || '',
+            avatar: user.avatar_url || ''
+          })).filter(u => u.name || u.avatar),
+          updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.comments || 0,
+          milestone: issue.milestone?.title || '', dueDate: issue.milestone?.due_on || '',
+          labels: (issue.labels || []).map(label => ({ name: label.name || label, color: label.color || '' }))
+        };
+      });
     });
   } else {
-    const baseUrl = (connection.base_url || 'https://gitlab.com').replace(/\/$/, '');
+    const baseUrl = getGitLabBaseUrl(connection);
     headers['PRIVATE-TOKEN'] = token;
     requests = projects.map(async project => {
       const query = new URLSearchParams({ state: 'opened', per_page: '100', scope: connection.scope === 'assigned' ? 'assigned_to_me' : 'all' });
@@ -263,15 +529,56 @@ async function requestIssues(connection) {
       try {
         labelsByName = new Map((await getProjectLabels(connection, project)).map(label => [label.name, label.color]));
       } catch (_) { /* Las issues siguen siendo útiles si no se pueden consultar las etiquetas. */ }
-      return issues.map(issue => ({
-        provider: 'gitlab', project, id: issue.iid, title: issue.title,
-        url: issue.web_url, state: issue.state, author: issue.author?.username || '',
-        assignees: (issue.assignees || []).map(user => user.username).join(', '),
-        updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.user_notes_count || 0,
-        milestone: issue.milestone?.title || '', dueDate: issue.due_date || '',
-        labels: (issue.labels || []).map(name => ({ name, color: labelsByName.get(name) || '' }))
-      }));
+      return issues.map(issue => {
+        const assigneesList = (issue.assignees && issue.assignees.length) ? issue.assignees : (issue.assignee ? [issue.assignee] : []);
+        const authorRawAvatar = issue.author?.avatar_url || issue.author?.avatar_path || issue.author?.avatarPath || '';
+        return {
+          provider: 'gitlab', project, id: issue.iid, title: issue.title,
+          url: issue.web_url, state: issue.state,
+          author: issue.author?.username || issue.author?.name || '',
+          authorAvatar: resolveGitLabAvatar(authorRawAvatar, baseUrl),
+          assignees: assigneesList.map(user => user.username || user.name || '').filter(Boolean).join(', '),
+          assigneeDetails: assigneesList.map(user => {
+            const userRawAvatar = user.avatar_url || user.avatar_path || user.avatarPath || '';
+            return {
+              name: user.username || user.name || '',
+              avatar: resolveGitLabAvatar(userRawAvatar, baseUrl)
+            };
+          }).filter(u => u.name || u.avatar),
+          updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.user_notes_count || 0,
+          milestone: issue.milestone?.title || '', dueDate: issue.due_date || '',
+          labels: (issue.labels || []).map(name => ({ name, color: labelsByName.get(name) || '' }))
+        };
+      });
     });
+
+    const allGitLabIssues = (await Promise.all(requests)).flat();
+    const uniqueAvatarUrls = new Set();
+    allGitLabIssues.forEach(issue => {
+      if (issue.authorAvatar) uniqueAvatarUrls.add(issue.authorAvatar);
+      (issue.assigneeDetails || []).forEach(a => {
+        if (a.avatar) uniqueAvatarUrls.add(a.avatar);
+      });
+    });
+
+    const avatarDataMap = new Map();
+    await Promise.all([...uniqueAvatarUrls].map(async url => {
+      const dataUrl = await fetchGitLabAvatarAsDataUrl(url, token, baseUrl);
+      avatarDataMap.set(url, dataUrl);
+    }));
+
+    allGitLabIssues.forEach(issue => {
+      if (issue.authorAvatar && avatarDataMap.has(issue.authorAvatar)) {
+        issue.authorAvatar = avatarDataMap.get(issue.authorAvatar);
+      }
+      (issue.assigneeDetails || []).forEach(a => {
+        if (a.avatar && avatarDataMap.has(a.avatar)) {
+          a.avatar = avatarDataMap.get(a.avatar);
+        }
+      });
+    });
+
+    return allGitLabIssues.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
   }
   return (await Promise.all(requests)).flat().sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
@@ -341,6 +648,74 @@ ipcMain.handle('save-external-issue-label-rule', async (event, rule) => {
   return db.saveExternalIssueLabelRule({ ...rule, label: rule.label.trim() });
 });
 ipcMain.handle('delete-external-issue-label-rule', async (event, provider, label) => db.deleteExternalIssueLabelRule(provider, label));
+
+ipcMain.handle('open-gitlab-web-login', async (event, customBaseUrl) => {
+  const connection = db?.getIssueConnection?.('gitlab');
+  const baseUrl = customBaseUrl || getGitLabBaseUrl(connection);
+  const loginUrl = `${baseUrl}/users/sign_in`;
+
+  return new Promise(resolve => {
+    let authWindow = new BrowserWindow({
+      width: 900,
+      height: 750,
+      parent: mainWindow || undefined,
+      modal: false,
+      title: 'Iniciar sesión en GitLab',
+      autoHideMenuBar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        session: session.defaultSession
+      }
+    });
+
+    let detectedLogin = false;
+
+    const checkLogin = async () => {
+      if (!authWindow || authWindow.isDestroyed()) return;
+      try {
+        const currentUrl = authWindow.webContents.getURL();
+        const parsedCurrent = new URL(currentUrl);
+        const parsedBase = new URL(baseUrl);
+        if (parsedCurrent.hostname === parsedBase.hostname) {
+          const isSignInPage = parsedCurrent.pathname.includes('/users/sign_in') || parsedCurrent.pathname.includes('/users/password');
+          if (!isSignInPage) {
+            const loggedIn = await authWindow.webContents.executeJavaScript(`
+              Boolean(
+                window.gon?.current_username ||
+                window.gon?.current_user_id ||
+                document.querySelector('.header-user') ||
+                document.querySelector('[data-user]') ||
+                document.querySelector('.user-avatar-link') ||
+                document.querySelector('.current-user')
+              )
+            `);
+            if (loggedIn) {
+              detectedLogin = true;
+              gitlabAvatarCache.clear();
+              setTimeout(() => {
+                if (authWindow && !authWindow.isDestroyed()) {
+                  authWindow.close();
+                }
+              }, 800);
+            }
+          }
+        }
+      } catch (_) {}
+    };
+
+    authWindow.webContents.on('did-finish-load', checkLogin);
+    authWindow.webContents.on('did-navigate-in-page', checkLogin);
+
+    authWindow.on('closed', () => {
+      authWindow = null;
+      gitlabAvatarCache.clear();
+      resolve({ success: detectedLogin });
+    });
+
+    authWindow.loadURL(loginUrl);
+  });
+});
 
 // IPC Handlers para controles de ventana
 ipcMain.on('window-minimize', () => mainWindow && mainWindow.minimize());
