@@ -16,6 +16,7 @@
   let labelRules = [];
   let availableIssueLabels = [];
   let currentView = 'table';
+  let tableSort = { column: 'updatedAt', direction: 'desc' };
   const STATUS_COLUMNS = [
     { id: 'pending', label: 'Pendiente' }, { id: 'in_progress', label: 'En Curso' },
     { id: 'blocked', label: 'Bloqueado' }, { id: 'testing', label: 'Testing' }, { id: 'completed', label: 'Completada' }
@@ -165,10 +166,117 @@
     }).join('');
   }
 
+  function sortIssues(issues, column, direction) {
+    if (!column || !direction) return issues;
+    const modifier = direction === 'desc' ? -1 : 1;
+
+    return [...issues].sort((a, b) => {
+      let valA, valB;
+      switch (column) {
+        case 'provider':
+          valA = a.provider || '';
+          valB = b.provider || '';
+          return valA.localeCompare(valB, 'es') * modifier;
+
+        case 'title':
+          valA = a.title || '';
+          valB = b.title || '';
+          return valA.localeCompare(valB, 'es', { numeric: true, sensitivity: 'base' }) * modifier;
+
+        case 'project':
+          valA = a.project || '';
+          valB = b.project || '';
+          return valA.localeCompare(valB, 'es') * modifier;
+
+        case 'assignees':
+          valA = (a.assignees || '').trim();
+          valB = (b.assignees || '').trim();
+          if (!valA && valB) return 1;
+          if (valA && !valB) return -1;
+          if (!valA && !valB) return 0;
+          return valA.localeCompare(valB, 'es') * modifier;
+
+        case 'labels':
+          valA = (a.labels || []).map(labelName).join(', ').trim();
+          valB = (b.labels || []).map(labelName).join(', ').trim();
+          if (!valA && valB) return 1;
+          if (valA && !valB) return -1;
+          if (!valA && !valB) return 0;
+          return valA.localeCompare(valB, 'es') * modifier;
+
+        case 'milestone':
+          valA = (a.milestone || '').trim();
+          valB = (b.milestone || '').trim();
+          if (!valA && valB) return 1;
+          if (valA && !valB) return -1;
+          if (!valA && !valB) return 0;
+          return valA.localeCompare(valB, 'es') * modifier;
+
+        case 'comments':
+          valA = Number(a.comments) || 0;
+          valB = Number(b.comments) || 0;
+          return (valA - valB) * modifier;
+
+        case 'createdAt':
+          valA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          valB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return (valA - valB) * modifier;
+
+        case 'updatedAt':
+        default:
+          valA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          valB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          return (valA - valB) * modifier;
+      }
+    });
+  }
+
+  function updateSortHeadersUI() {
+    const table = document.querySelector('.issues-table');
+    if (!table) return;
+    table.querySelectorAll('th.sortable').forEach(th => {
+      const col = th.dataset.sort;
+      const icon = th.querySelector('.sort-icon');
+      if (col === tableSort.column) {
+        th.classList.add('sort-active');
+        th.classList.toggle('sort-asc', tableSort.direction === 'asc');
+        th.classList.toggle('sort-desc', tableSort.direction === 'desc');
+        th.setAttribute('aria-sort', tableSort.direction === 'asc' ? 'ascending' : 'descending');
+        if (icon) icon.textContent = tableSort.direction === 'asc' ? '↑' : '↓';
+      } else {
+        th.classList.remove('sort-active', 'sort-asc', 'sort-desc');
+        th.setAttribute('aria-sort', 'none');
+        if (icon) icon.textContent = '↕';
+      }
+    });
+  }
+
+  function handleTableSort(column) {
+    if (tableSort.column === column) {
+      if (tableSort.direction === 'asc') {
+        tableSort.direction = 'desc';
+      } else if (tableSort.direction === 'desc') {
+        if (column !== 'updatedAt') {
+          tableSort.column = 'updatedAt';
+          tableSort.direction = 'desc';
+        } else {
+          tableSort.direction = 'asc';
+        }
+      }
+    } else {
+      tableSort.column = column;
+      const defaultDesc = ['updatedAt', 'createdAt', 'comments'];
+      tableSort.direction = defaultDesc.includes(column) ? 'desc' : 'asc';
+    }
+    updateSortHeadersUI();
+    renderIssues();
+  }
+
   function renderIssues() {
     const visible = getVisibleIssues();
     feedback.textContent = allIssues.length ? `${visible.length} de ${allIssues.length} issues abiertas.` : 'No hay issues abiertas para los filtros indicados.';
-    issuesList.innerHTML = visible.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
+    const sortedForTable = sortIssues(visible, tableSort.column, tableSort.direction);
+    issuesList.innerHTML = sortedForTable.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
     renderKanban(visible);
   }
 
@@ -277,8 +385,16 @@
     finally { refreshButton.disabled = false; refreshButton.textContent = 'Actualizar issues'; }
   });
 
+  document.querySelectorAll('.issues-table th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.sort;
+      if (col) handleTableSort(col);
+    });
+  });
+
   document.addEventListener('DOMContentLoaded', async () => {
     try {
+      updateSortHeadersUI();
       await loadConnections();
       await loadLabelRules();
       await loadAllIssues();

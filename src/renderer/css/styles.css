@@ -434,6 +434,13 @@ textarea.form-control.auto-resize {
 [hidden] { display: none !important; }
 .issues-table { width: 100%; border-collapse: collapse; min-width: 1050px; font-size: 0.8rem; }
 .issues-table th { text-align: left; padding: 0.75rem; background: var(--bg-primary); white-space: nowrap; color: var(--text-secondary); font-size: 0.72rem; }
+.issues-table th.sortable { cursor: pointer; user-select: none; transition: background-color 0.15s, color 0.15s; }
+.issues-table th.sortable:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.issues-table th .th-content { display: inline-flex; align-items: center; gap: 0.4rem; }
+.issues-table th .sort-icon { display: inline-flex; align-items: center; font-size: 0.75rem; opacity: 0.35; transition: opacity 0.15s, color 0.15s; }
+.issues-table th.sortable:hover .sort-icon { opacity: 0.7; }
+.issues-table th.sort-active { color: var(--primary-color); font-weight: 600; }
+.issues-table th.sort-active .sort-icon { opacity: 1; color: var(--primary-color); font-weight: 700; }
 .issues-table td { padding: 0.75rem; border-top: 1px solid var(--border-color); vertical-align: top; }
 .issues-table .issue-title { min-width: 220px; margin: 0; }
 .issues-table .issue-labels { margin: 0; min-width: 120px; }
