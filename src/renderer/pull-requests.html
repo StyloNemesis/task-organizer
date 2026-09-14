@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRs / MRs - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script>(function(){var t=localStorage.getItem('app-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+  <div class="titlebar"><div class="titlebar-controls">
+    <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+    <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+    <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+  </div></div>
+  <div class="app-container">
+    <main class="main-content">
+      <header class="content-header integrations-header">
+        <div>
+          <h2>Pull Requests & Merge Requests</h2>
+          <p>Cambios abiertos en GitHub y GitLab en los que participas como autor, reviewer o asignado.</p>
+        </div>
+        <button id="refreshPrsBtn" class="btn btn-primary" type="button">Actualizar PRs</button>
+      </header>
+      <div class="content-body pull-requests-page">
+        <div class="pr-toolbar">
+          <div class="pr-role-filters" role="group" aria-label="Filtrar por rol">
+            <button class="btn btn-secondary pr-role-btn active" data-role="all" type="button">
+              <span>Todas</span>
+              <span class="pr-role-count" id="countAll">0</span>
+            </button>
+            <button class="btn btn-secondary pr-role-btn" data-role="reviewer" type="button" title="Pull Requests donde eres revisor solicitado">
+              <span class="btn-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/><path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/></svg></span>
+              <span>Para revisar</span>
+              <span class="pr-role-count" id="countReviewer">0</span>
+            </button>
+            <button class="btn btn-secondary pr-role-btn" data-role="author" type="button" title="Pull Requests creadas por ti">
+              <span class="btn-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z"/></svg></span>
+              <span>Creadas por mí</span>
+              <span class="pr-role-count" id="countAuthor">0</span>
+            </button>
+            <button class="btn btn-secondary pr-role-btn" data-role="assignee" type="button" title="Pull Requests donde estás asignado">
+              <span class="btn-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0-2a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg></span>
+              <span>Asignadas a mí</span>
+              <span class="pr-role-count" id="countAssignee">0</span>
+            </button>
+          </div>
+          <div class="pr-filters-row">
+            <input id="prSearchInput" class="form-control" type="search" placeholder="Buscar por título, número, autor o rama…">
+            <select id="prProviderSelect" class="form-control">
+              <option value="all">Todos los proveedores</option>
+              <option value="github">GitHub</option>
+              <option value="gitlab">GitLab</option>
+            </select>
+            <select id="prProjectSelect" class="form-control">
+              <option value="all">Todos los proyectos</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="prFeedback" class="issues-feedback">Consultando Pull Requests y Merge Requests…</div>
+
+        <div id="prList" class="pr-list"></div>
+
+        <div id="prEmptyState" class="pr-empty-state" style="display: none;">
+          <div class="pr-empty-icon" id="prEmptyIcon">
+            <svg width="44" height="44" viewBox="0 0 16 16" fill="currentColor" style="color: var(--success-color);"><path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm3.854-8.854a.5.5 0 0 0-.708-.708L7.5 9.793 5.354 7.646a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l4-4z"/></svg>
+          </div>
+          <h4 class="pr-empty-title">Sin Pull Requests abiertas</h4>
+          <p class="pr-empty-desc">No tienes cambios abiertos pendientes en los que participes como autor, revisor o asignado con las cuentas conectadas.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="js/icons.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/external-links.js"></script>
+  <script src="js/pull-requests.js"></script>
+</body>
+</html>
+
