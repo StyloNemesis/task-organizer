@@ -1,5 +1,7 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, session, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const zlib = require('zlib');
 const https = require('https');
 const http = require('http');
 const Database = require('./src/database/db');
@@ -858,6 +860,516 @@ ipcMain.handle('open-gitlab-web-login', async (event, customBaseUrl) => {
 
     authWindow.loadURL(loginUrl);
   });
+});
+
+// ========== EXPORTACIÓN DE ISSUES (XLSX Y SVG) ==========
+
+function escapeXml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function truncateText(str, maxLength = 40) {
+  const s = String(str ?? '').trim();
+  if (s.length <= maxLength) return s;
+  return s.slice(0, maxLength - 1) + '…';
+}
+
+function createZip(files) {
+  const localHeaders = [];
+  const centralHeaders = [];
+  let offset = 0;
+
+  const crcTable = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    }
+    crcTable[i] = c;
+  }
+  function crc32(buf) {
+    let crc = 0 ^ (-1);
+    for (let i = 0; i < buf.length; i++) {
+      crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+    }
+    return (crc ^ (-1)) >>> 0;
+  }
+
+  for (const file of files) {
+    const nameBuf = Buffer.from(file.name, 'utf-8');
+    const contentBuf = Buffer.isBuffer(file.content) ? file.content : Buffer.from(file.content, 'utf-8');
+    const uncompressedSize = contentBuf.length;
+    const crc = crc32(contentBuf);
+    const compressedData = zlib.deflateRawSync(contentBuf);
+    const compressedSize = compressedData.length;
+
+    const localHeader = Buffer.alloc(30 + nameBuf.length);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0, 6);
+    localHeader.writeUInt16LE(8, 8);
+    localHeader.writeUInt16LE(0, 10);
+    localHeader.writeUInt16LE(0, 12);
+    localHeader.writeUInt32LE(crc, 14);
+    localHeader.writeUInt32LE(compressedSize, 18);
+    localHeader.writeUInt32LE(uncompressedSize, 22);
+    localHeader.writeUInt16LE(nameBuf.length, 26);
+    localHeader.writeUInt16LE(0, 28);
+    nameBuf.copy(localHeader, 30);
+
+    localHeaders.push(localHeader, compressedData);
+
+    const centralHeader = Buffer.alloc(46 + nameBuf.length);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0, 8);
+    centralHeader.writeUInt16LE(8, 10);
+    centralHeader.writeUInt16LE(0, 12);
+    centralHeader.writeUInt16LE(0, 14);
+    centralHeader.writeUInt32LE(crc, 16);
+    centralHeader.writeUInt32LE(compressedSize, 20);
+    centralHeader.writeUInt32LE(uncompressedSize, 24);
+    centralHeader.writeUInt16LE(nameBuf.length, 28);
+    centralHeader.writeUInt16LE(0, 30);
+    centralHeader.writeUInt16LE(0, 32);
+    centralHeader.writeUInt16LE(0, 34);
+    centralHeader.writeUInt16LE(0, 36);
+    centralHeader.writeUInt32LE(0, 38);
+    centralHeader.writeUInt32LE(offset, 42);
+    nameBuf.copy(centralHeader, 46);
+
+    centralHeaders.push(centralHeader);
+    offset += localHeader.length + compressedData.length;
+  }
+
+  const centralDirSize = centralHeaders.reduce((sum, b) => sum + b.length, 0);
+  const centralDirOffset = offset;
+
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(files.length, 8);
+  eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(centralDirSize, 12);
+  eocd.writeUInt32LE(centralDirOffset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  return Buffer.concat([...localHeaders, ...centralHeaders, eocd]);
+}
+
+function generateXlsx(columns, rows, sheetName = 'Issues') {
+  function colName(colIndex) {
+    let name = '';
+    let num = colIndex + 1;
+    while (num > 0) {
+      const rem = (num - 1) % 26;
+      name = String.fromCharCode(65 + rem) + name;
+      num = Math.floor((num - 1) / 26);
+    }
+    return name;
+  }
+
+  let sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheetData>`;
+
+  sheetXml += `<row r="1">`;
+  columns.forEach((col, idx) => {
+    const ref = `${colName(idx)}1`;
+    sheetXml += `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(col.header || col.id)}</t></is></c>`;
+  });
+  sheetXml += `</row>`;
+
+  rows.forEach((row, rowIdx) => {
+    const rNum = rowIdx + 2;
+    sheetXml += `<row r="${rNum}">`;
+    columns.forEach((col, colIdx) => {
+      const val = row[col.id];
+      const ref = `${colName(colIdx)}${rNum}`;
+      if (val !== undefined && val !== null && val !== '') {
+        if (typeof val === 'number') {
+          sheetXml += `<c r="${ref}"><v>${val}</v></c>`;
+        } else {
+          sheetXml += `<c r="${ref}" t="inlineStr"><is><t>${escapeXml(val)}</t></is></c>`;
+        }
+      }
+    });
+    sheetXml += `</row>`;
+  });
+
+  sheetXml += `</sheetData></worksheet>`;
+
+  const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+  const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+
+  const workbookRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+  <fills count="1"><fill><patternFill patternType="none"/></fill></fills>
+  <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
+</styleSheet>`;
+
+  return createZip([
+    { name: '[Content_Types].xml', content: contentTypesXml },
+    { name: '_rels/.rels', content: rootRelsXml },
+    { name: 'xl/workbook.xml', content: workbookXml },
+    { name: 'xl/_rels/workbook.xml.rels', content: workbookRelsXml },
+    { name: 'xl/worksheets/sheet1.xml', content: sheetXml },
+    { name: 'xl/styles.xml', content: stylesXml }
+  ]);
+}
+
+const SVG_STATUS_CONFIG = {
+  pending: { label: 'Pendiente', color: '#64748b', bg: '#f1f5f9' },
+  in_progress: { label: 'En Curso', color: '#2563eb', bg: '#dbeafe' },
+  blocked: { label: 'Bloqueado', color: '#dc2626', bg: '#fee2e2' },
+  testing: { label: 'Testing', color: '#d97706', bg: '#fef3c7' },
+  completed: { label: 'Completada', color: '#16a34a', bg: '#dcfce7' }
+};
+
+function generateIssuesTableSvg(issues, options = {}) {
+  const title = options.title || 'Reporte de Issues';
+  const subtitle = `${issues.length} issues · Generado el ${new Date().toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}`;
+  
+  const width = 1260;
+  const headerHeight = 90;
+  const thHeight = 36;
+  const rowHeight = 44;
+  const totalHeight = headerHeight + thHeight + (issues.length * rowHeight) + 40;
+
+  const cols = [
+    { name: 'Proveedor', x: 25, width: 85 },
+    { name: 'Issue', x: 120, width: 380 },
+    { name: 'Proyecto', x: 510, width: 170 },
+    { name: 'Responsable', x: 690, width: 170 },
+    { name: 'Estado', x: 870, width: 110 },
+    { name: 'Etiquetas', x: 990, width: 140 },
+    { name: 'Actualizada', x: 1140, width: 95 }
+  ];
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" width="${width}" height="${totalHeight}">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .header-title { font-size: 20px; font-weight: 700; fill: #ffffff; }
+    .header-sub { font-size: 13px; font-weight: 400; fill: #94a3b8; }
+    .th-text { font-size: 11px; font-weight: 700; fill: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
+    .cell-title-id { font-size: 13px; font-weight: 700; fill: #0f172a; }
+    .cell-title-text { font-size: 13px; font-weight: 500; fill: #1e293b; }
+    .cell-text { font-size: 12px; font-weight: 400; fill: #334155; }
+    .badge-text { font-size: 11px; font-weight: 600; }
+  </style>
+
+  <rect width="${width}" height="${totalHeight}" fill="#f8fafc"/>
+
+  <rect x="20" y="15" width="${width - 40}" height="65" rx="8" fill="url(#headerGrad)"/>
+  <text x="40" y="42" class="header-title">${escapeXml(title)}</text>
+  <text x="40" y="63" class="header-sub">${escapeXml(subtitle)}</text>
+
+  <g transform="translate(20, 95)" filter="url(#shadow)">
+    <rect x="0" y="0" width="${width - 40}" height="${thHeight}" rx="6" fill="#e2e8f0"/>
+`;
+
+  cols.forEach(col => {
+    svg += `    <text x="${col.x}" y="23" class="th-text">${escapeXml(col.name)}</text>\n`;
+  });
+
+  issues.forEach((issue, idx) => {
+    const y = thHeight + (idx * rowHeight);
+    const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+    const isGitLab = issue.provider === 'gitlab';
+    const provBg = isGitLab ? '#ea580c' : '#24292f';
+    const provLabel = isGitLab ? 'GitLab' : 'GitHub';
+
+    const statusConf = SVG_STATUS_CONFIG[issue.status] || SVG_STATUS_CONFIG.pending;
+    const assigneesText = issue.assignees || (issue.assigneeDetails || []).map(a => a.name).join(', ') || 'Sin asignar';
+    const dateText = issue.updatedAt ? new Date(issue.updatedAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+
+    svg += `
+    <rect x="0" y="${y}" width="${width - 40}" height="${rowHeight}" fill="${bg}"/>
+    <line x1="0" y1="${y + rowHeight}" x2="${width - 40}" y2="${y + rowHeight}" stroke="#e2e8f0" stroke-width="1"/>
+
+    <rect x="25" y="${y + 11}" width="65" height="22" rx="4" fill="${provBg}"/>
+    <text x="57" y="${y + 26}" class="badge-text" fill="#ffffff" text-anchor="middle">${provLabel}</text>
+
+    <text x="120" y="${y + 27}" class="cell-title-text">
+      <tspan class="cell-title-id">#${escapeXml(issue.id)}</tspan> ${escapeXml(truncateText(issue.title, 45))}
+    </text>
+
+    <text x="510" y="${y + 27}" class="cell-text">${escapeXml(truncateText(issue.project, 22))}</text>
+    <text x="690" y="${y + 27}" class="cell-text">${escapeXml(truncateText(assigneesText, 20))}</text>
+
+    <rect x="870" y="${y + 11}" width="95" height="22" rx="11" fill="${statusConf.bg}"/>
+    <text x="917" y="${y + 26}" class="badge-text" fill="${statusConf.color}" text-anchor="middle">${statusConf.label}</text>
+
+    <g transform="translate(990, ${y + 11})">
+`;
+    const labels = (issue.labels || []).slice(0, 2);
+    let lx = 0;
+    labels.forEach(lbl => {
+      const name = typeof lbl === 'string' ? lbl : lbl.name;
+      const color = (typeof lbl === 'object' && lbl.color) ? (lbl.color.startsWith('#') ? lbl.color : `#${lbl.color}`) : '#64748b';
+      const w = Math.min(65, Math.max(35, name.length * 7 + 10));
+      svg += `      <rect x="${lx}" y="0" width="${w}" height="22" rx="4" fill="${color}" opacity="0.9"/>
+      <text x="${lx + w / 2}" y="15" class="badge-text" fill="#ffffff" text-anchor="middle">${escapeXml(truncateText(name, 8))}</text>\n`;
+      lx += w + 5;
+    });
+
+    svg += `    </g>
+    <text x="1140" y="${y + 27}" class="cell-text">${escapeXml(dateText)}</text>
+`;
+  });
+
+  svg += `  </g>
+</svg>`;
+
+  return svg;
+}
+
+function generateIssuesKanbanSvg(issues, options = {}) {
+  const title = options.title || 'Tablero Kanban de Issues';
+  const subtitle = `${issues.length} issues · Generado el ${new Date().toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })}`;
+
+  const COLUMNS = [
+    { id: 'pending', label: 'Pendiente', color: '#64748b', bg: '#f1f5f9' },
+    { id: 'in_progress', label: 'En Curso', color: '#2563eb', bg: '#dbeafe' },
+    { id: 'blocked', label: 'Bloqueado', color: '#dc2626', bg: '#fee2e2' },
+    { id: 'testing', label: 'Testing', color: '#d97706', bg: '#fef3c7' },
+    { id: 'completed', label: 'Completada', color: '#16a34a', bg: '#dcfce7' }
+  ];
+
+  const colWidth = 255;
+  const colGap = 15;
+  const margin = 25;
+  const headerHeight = 90;
+  const colHeaderHeight = 40;
+  const cardHeight = 96;
+  const cardGap = 10;
+
+  const grouped = COLUMNS.map(col => ({
+    ...col,
+    cards: issues.filter(i => i.status === col.id)
+  }));
+
+  const maxCards = Math.max(...grouped.map(g => g.cards.length), 1);
+  const totalWidth = margin * 2 + (colWidth * COLUMNS.length) + (colGap * (COLUMNS.length - 1));
+  const boardHeight = colHeaderHeight + (maxCards * (cardHeight + cardGap)) + 20;
+  const totalHeight = headerHeight + boardHeight + 30;
+
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">
+  <defs>
+    <linearGradient id="headerGradKanban" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-2%" y="-2%" width="104%" height="106%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .header-title { font-size: 20px; font-weight: 700; fill: #ffffff; }
+    .header-sub { font-size: 13px; font-weight: 400; fill: #94a3b8; }
+    .col-title { font-size: 13px; font-weight: 700; fill: #334155; }
+    .col-count { font-size: 11px; font-weight: 700; fill: #64748b; }
+    .card-title-id { font-size: 12px; font-weight: 700; fill: #0f172a; }
+    .card-title-text { font-size: 12px; font-weight: 500; fill: #1e293b; }
+    .card-subtext { font-size: 11px; font-weight: 400; fill: #64748b; }
+    .badge-text { font-size: 10px; font-weight: 600; }
+  </style>
+
+  <rect width="${totalWidth}" height="${totalHeight}" fill="#f1f5f9"/>
+
+  <rect x="${margin}" y="15" width="${totalWidth - margin * 2}" height="65" rx="8" fill="url(#headerGradKanban)"/>
+  <text x="${margin + 20}" y="42" class="header-title">${escapeXml(title)}</text>
+  <text x="${margin + 20}" y="63" class="header-sub">${escapeXml(subtitle)}</text>
+
+  <g transform="translate(${margin}, ${headerHeight + 15})">
+`;
+
+  grouped.forEach((col, colIdx) => {
+    const colX = colIdx * (colWidth + colGap);
+    svg += `
+    <g transform="translate(${colX}, 0)">
+      <rect x="0" y="0" width="${colWidth}" height="${boardHeight}" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+
+      <rect x="0" y="0" width="${colWidth}" height="${colHeaderHeight}" rx="8" fill="#e2e8f0"/>
+      <circle cx="16" cy="20" r="5" fill="${col.color}"/>
+      <text x="28" y="24" class="col-title">${escapeXml(col.label)}</text>
+      <rect x="${colWidth - 36}" y="10" width="24" height="20" rx="10" fill="#cbd5e1"/>
+      <text x="${colWidth - 24}" y="24" class="col-count" text-anchor="middle">${col.cards.length}</text>
+
+      <g transform="translate(10, ${colHeaderHeight + 10})">
+`;
+
+    col.cards.forEach((card, cardIdx) => {
+      const cardY = cardIdx * (cardHeight + cardGap);
+      const isGitLab = card.provider === 'gitlab';
+      const provBg = isGitLab ? '#ea580c' : '#24292f';
+      const provLabel = isGitLab ? 'GitLab' : 'GitHub';
+      const personText = card.assignees ? `Asignado: ${card.assignees}` : (card.author ? `Por: ${card.author}` : 'Sin asignar');
+
+      svg += `
+        <g transform="translate(0, ${cardY})" filter="url(#cardShadow)">
+          <rect x="0" y="0" width="${colWidth - 20}" height="${cardHeight}" rx="6" fill="#ffffff" stroke="#e2e8f0" stroke-width="1"/>
+
+          <rect x="10" y="9" width="46" height="16" rx="3" fill="${provBg}"/>
+          <text x="33" y="21" class="badge-text" fill="#ffffff" text-anchor="middle">${provLabel}</text>
+          <text x="62" y="21" class="card-subtext">${escapeXml(truncateText(card.project, 22))}</text>
+
+          <text x="10" y="44" class="card-title-text">
+            <tspan class="card-title-id">#${escapeXml(card.id)}</tspan> ${escapeXml(truncateText(card.title, 26))}
+          </text>
+`;
+      const firstLabel = (card.labels || [])[0];
+      if (firstLabel) {
+        const lname = typeof firstLabel === 'string' ? firstLabel : firstLabel.name;
+        const lcolor = (typeof firstLabel === 'object' && firstLabel.color) ? (firstLabel.color.startsWith('#') ? firstLabel.color : `#${firstLabel.color}`) : '#64748b';
+        svg += `          <rect x="10" y="66" width="${Math.min(70, lname.length * 7 + 10)}" height="18" rx="3" fill="${lcolor}" opacity="0.9"/>
+          <text x="15" y="79" class="badge-text" fill="#ffffff">${escapeXml(truncateText(lname, 8))}</text>\n`;
+      }
+
+      svg += `          <text x="${colWidth - 30}" y="79" class="card-subtext" text-anchor="end">${escapeXml(truncateText(personText, 18))}</text>
+        </g>
+`;
+    });
+
+    svg += `      </g>
+    </g>
+`;
+  });
+
+  svg += `  </g>
+</svg>`;
+
+  return svg;
+}
+
+ipcMain.handle('export-issues', async (event, { format, issues, options = {} }) => {
+  if (!issues || !Array.isArray(issues) || !issues.length) {
+    throw new Error('No hay issues para exportar.');
+  }
+
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const win = BrowserWindow.getFocusedWindow() || mainWindow;
+
+  if (format === 'xlsx') {
+    const defaultPath = path.join(app.getPath('documents'), `issues-${dateStr}.xlsx`);
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Exportar issues a Excel',
+      defaultPath,
+      filters: [{ name: 'Excel Spreadsheet (*.xlsx)', extensions: ['xlsx'] }]
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    const STATUS_MAP = {
+      pending: 'Pendiente',
+      in_progress: 'En Curso',
+      blocked: 'Bloqueado',
+      testing: 'Testing',
+      completed: 'Completada'
+    };
+
+    const columns = [
+      { id: 'provider', header: 'Proveedor' },
+      { id: 'id', header: 'ID' },
+      { id: 'title', header: 'Título' },
+      { id: 'url', header: 'URL' },
+      { id: 'project', header: 'Proyecto' },
+      { id: 'status', header: 'Estado' },
+      { id: 'assignees', header: 'Responsables' },
+      { id: 'author', header: 'Reporter' },
+      { id: 'labels', header: 'Etiquetas' },
+      { id: 'milestone', header: 'Milestone' },
+      { id: 'comments', header: 'Comentarios' },
+      { id: 'createdAt', header: 'Fecha Creación' },
+      { id: 'updatedAt', header: 'Fecha Actualización' }
+    ];
+
+    const rows = issues.map(i => ({
+      provider: i.provider === 'github' ? 'GitHub' : 'GitLab',
+      id: i.id,
+      title: i.title,
+      url: i.url,
+      project: i.project,
+      status: STATUS_MAP[i.status] || i.status || 'Pendiente',
+      assignees: i.assignees || (i.assigneeDetails || []).map(a => a.name).join(', ') || 'Sin asignar',
+      author: i.author || '',
+      labels: (i.labels || []).map(l => typeof l === 'string' ? l : l.name).join(', '),
+      milestone: i.milestone || '',
+      comments: i.comments || 0,
+      createdAt: i.createdAt ? new Date(i.createdAt).toLocaleString('es-ES') : '',
+      updatedAt: i.updatedAt ? new Date(i.updatedAt).toLocaleString('es-ES') : ''
+    }));
+
+    const buffer = generateXlsx(columns, rows, 'Issues');
+    await fs.promises.writeFile(filePath, buffer);
+    return { success: true, filePath, count: issues.length, format: 'xlsx' };
+  } else if (format === 'svg') {
+    const layout = options.layout === 'kanban' ? 'kanban' : 'table';
+    const defaultPath = path.join(app.getPath('documents'), `issues-${layout}-${dateStr}.svg`);
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      title: 'Exportar issues a SVG',
+      defaultPath,
+      filters: [{ name: 'Vector Graphic (*.svg)', extensions: ['svg'] }]
+    });
+
+    if (canceled || !filePath) return { success: false, canceled: true };
+
+    const svgContent = layout === 'kanban'
+      ? generateIssuesKanbanSvg(issues, options)
+      : generateIssuesTableSvg(issues, options);
+
+    await fs.promises.writeFile(filePath, svgContent, 'utf-8');
+    return { success: true, filePath, count: issues.length, format: 'svg' };
+  }
+
+  throw new Error(`Formato no soportado: ${format}`);
 });
 
 // IPC Handlers para controles de ventana

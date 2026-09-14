@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('api', {
   saveExternalIssueLabelRule: (rule) => ipcRenderer.invoke('save-external-issue-label-rule', rule),
   deleteExternalIssueLabelRule: (provider, label) => ipcRenderer.invoke('delete-external-issue-label-rule', provider, label),
   openGitLabWebLogin: (baseUrl) => ipcRenderer.invoke('open-gitlab-web-login', baseUrl),
+  exportIssues: (payload) => ipcRenderer.invoke('export-issues', payload),
 
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),

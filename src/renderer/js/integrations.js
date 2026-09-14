@@ -8,6 +8,14 @@
   const tableView = document.getElementById('issuesTableView');
   const myIssuesBtn = document.getElementById('filterMyIssuesBtn');
   const settingsModal = document.getElementById('issueSettingsModal');
+  const exportModal = document.getElementById('exportIssuesModal');
+  const openExportBtn = document.getElementById('openExportIssuesModal');
+  const closeExportBtn = document.getElementById('closeExportIssues');
+  const cancelExportBtn = document.getElementById('cancelExportIssues');
+  const exportForm = document.getElementById('exportIssuesForm');
+  const exportSvgLayoutGroup = document.getElementById('exportSvgLayoutGroup');
+  const exportScopeVisibleLabel = document.getElementById('exportScopeVisibleLabel');
+  const exportScopeAllLabel = document.getElementById('exportScopeAllLabel');
   const filters = {
     search: document.getElementById('issueSearch'), project: document.getElementById('issueProjectFilter'),
     assignee: document.getElementById('issueAssigneeFilter'), label: document.getElementById('issueLabelFilter')
@@ -69,6 +77,47 @@
 
   function openSettings() { settingsModal.classList.add('active'); settingsModal.setAttribute('aria-hidden', 'false'); }
   function closeSettings() { settingsModal.classList.remove('active'); settingsModal.setAttribute('aria-hidden', 'true'); }
+
+  function updateExportFormatUI() {
+    if (!exportForm) return;
+    const selectedFormat = exportForm.exportFormat?.value || 'xlsx';
+    if (exportSvgLayoutGroup) {
+      exportSvgLayoutGroup.style.display = selectedFormat === 'svg' ? 'block' : 'none';
+    }
+    exportForm.querySelectorAll('.export-format-card').forEach(card => {
+      const radio = card.querySelector('input[name="exportFormat"]');
+      card.classList.toggle('active', Boolean(radio && radio.checked));
+    });
+  }
+
+  function openExportModal() {
+    if (!exportModal) return;
+    const visible = getVisibleIssues();
+    if (exportScopeVisibleLabel) {
+      exportScopeVisibleLabel.textContent = `Issues visibles según filtros actuales (${visible.length})`;
+    }
+    if (exportScopeAllLabel) {
+      exportScopeAllLabel.textContent = `Todas las issues abiertas cargadas (${allIssues.length})`;
+    }
+
+    const kanbanRadio = exportForm?.querySelector('input[name="exportSvgLayout"][value="kanban"]');
+    const tableRadio = exportForm?.querySelector('input[name="exportSvgLayout"][value="table"]');
+    if (currentView === 'kanban') {
+      if (kanbanRadio) kanbanRadio.checked = true;
+    } else {
+      if (tableRadio) tableRadio.checked = true;
+    }
+
+    updateExportFormatUI();
+    exportModal.classList.add('active');
+    exportModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeExportModal() {
+    if (!exportModal) return;
+    exportModal.classList.remove('active');
+    exportModal.setAttribute('aria-hidden', 'true');
+  }
 
   async function loadConnections() {
     connections = await window.api.getIssueConnections();
@@ -365,7 +414,77 @@
   document.getElementById('openIssueSettings').addEventListener('click', openSettings);
   document.getElementById('closeIssueSettings').addEventListener('click', closeSettings);
   settingsModal.addEventListener('click', event => { if (event.target === settingsModal) closeSettings(); });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeSettings(); });
+
+  if (openExportBtn) openExportBtn.addEventListener('click', openExportModal);
+  if (closeExportBtn) closeExportBtn.addEventListener('click', closeExportModal);
+  if (cancelExportBtn) cancelExportBtn.addEventListener('click', closeExportModal);
+  if (exportModal) exportModal.addEventListener('click', event => { if (event.target === exportModal) closeExportModal(); });
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      closeSettings();
+      closeExportModal();
+    }
+  });
+
+  if (exportForm) {
+    exportForm.querySelectorAll('input[name="exportFormat"]').forEach(radio => {
+      radio.addEventListener('change', updateExportFormatUI);
+    });
+
+    exportForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const format = exportForm.exportFormat.value;
+      const scope = exportForm.exportScope.value;
+      const rawIssues = scope === 'all' ? allIssues : getVisibleIssues();
+      const issues = sortIssues(rawIssues, tableSort.column, tableSort.direction);
+
+      if (!issues.length) {
+        feedback.textContent = 'No hay issues para exportar con el alcance seleccionado.';
+        feedback.className = 'issues-feedback issues-feedback--error';
+        return;
+      }
+
+      const svgLayout = exportForm.exportSvgLayout?.value || 'table';
+      const submitBtn = exportForm.querySelector('[type="submit"]');
+      const prevText = submitBtn ? submitBtn.textContent : 'Exportar archivo';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Exportando…';
+      }
+
+      try {
+        const res = await window.api.exportIssues({
+          format,
+          issues,
+          options: {
+            layout: svgLayout
+          }
+        });
+
+        if (res?.canceled) {
+          return;
+        }
+
+        if (res?.success) {
+          closeExportModal();
+          feedback.textContent = `Archivo exportado correctamente (${res.count} issues): ${res.filePath}`;
+          feedback.className = 'issues-feedback issues-feedback--success';
+        } else {
+          feedback.textContent = res?.error || 'No se pudo completar la exportación.';
+          feedback.className = 'issues-feedback issues-feedback--error';
+        }
+      } catch (err) {
+        feedback.textContent = err.message || 'Error inesperado al exportar issues.';
+        feedback.className = 'issues-feedback issues-feedback--error';
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = prevText;
+        }
+      }
+    });
+  }
   Object.values(filters).forEach(filter => filter.addEventListener(filter === filters.search ? 'input' : 'change', renderIssues));
   if (providerSelect) providerSelect.addEventListener('change', renderIssues);
   document.querySelectorAll('.issue-view-btn').forEach(button => button.addEventListener('click', () => {
