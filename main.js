@@ -485,14 +485,107 @@ async function fetchGitLabAvatarAsDataUrl(url, token, baseUrl) {
   return '';
 }
 
+function httpGetJson(url, headers = {}, maxRedirects = 3) {
+  return new Promise((resolve, reject) => {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (e) {
+      return reject(e);
+    }
+    const lib = parsed.protocol === 'http:' ? http : https;
+    const reqHeaders = {
+      Accept: 'application/json',
+      'User-Agent': 'Task-Organizer/1.3.0',
+      ...headers
+    };
+    const req = lib.get(url, { headers: reqHeaders, rejectUnauthorized: false }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        if (maxRedirects <= 0) return reject(new Error('Demasiadas redirecciones'));
+        let nextUrl = res.headers.location;
+        if (!nextUrl.startsWith('http://') && !nextUrl.startsWith('https://')) {
+          nextUrl = new URL(nextUrl, url).toString();
+        }
+        res.resume();
+        return httpGetJson(nextUrl, headers, maxRedirects - 1).then(resolve).catch(reject);
+      }
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        res.resume();
+        return reject(new Error(`HTTP ${res.statusCode}`));
+      }
+      const chunks = [];
+      res.on('data', chunk => chunks.push(chunk));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+          resolve(json);
+        } catch (err) {
+          reject(err);
+        }
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Timeout'));
+    });
+  });
+}
+
+const authenticatedUserCache = new Map();
+
+async function getAuthenticatedUser(provider, token, baseUrl) {
+  if (!token) return { username: '', name: '' };
+  const cacheKey = `${provider}:${token.slice(-8)}`;
+  if (authenticatedUserCache.has(cacheKey)) return authenticatedUserCache.get(cacheKey);
+
+  try {
+    if (provider === 'github') {
+      let data;
+      try {
+        data = await httpGetJson('https://api.github.com/user', { Authorization: `Bearer ${token}` });
+      } catch (_) {
+        data = await httpGetJson('https://api.github.com/user', { Authorization: `token ${token}` });
+      }
+      if (data && (data.login || data.name)) {
+        const res = { username: data.login || '', name: data.name || '' };
+        authenticatedUserCache.set(cacheKey, res);
+        return res;
+      }
+    } else if (provider === 'gitlab') {
+      let data;
+      try {
+        data = await httpGetJson(`${baseUrl}/api/v4/user`, { 'PRIVATE-TOKEN': token });
+      } catch (_) {
+        try {
+          data = await httpGetJson(`${baseUrl}/api/v4/personal_access_tokens/self`, { 'PRIVATE-TOKEN': token });
+        } catch (_) {}
+      }
+      if (data && (data.username || data.name)) {
+        const res = { username: data.username || '', name: data.name || '' };
+        authenticatedUserCache.set(cacheKey, res);
+        return res;
+      }
+    }
+  } catch (_) {}
+
+  return { username: '', name: '' };
+}
+
 async function requestIssues(connection) {
   const token = decryptToken(connection.token);
   const projects = getProjectsList(connection.projects);
   if (!projects.length) throw new Error('Indica al menos un proyecto o repositorio.');
 
-  const headers = { Accept: 'application/json' };
+  const headers = { Accept: 'application/json', 'User-Agent': 'Task-Organizer/1.3.0' };
   let requests;
   if (connection.provider === 'github') {
+    const detected = await getAuthenticatedUser('github', token);
+    const configuredUser = (connection.username || '').trim();
+    const userIdentifiers = [configuredUser, detected.username, detected.name].filter(Boolean);
+    const currentUsername = configuredUser || detected.username || detected.name || '';
+
     headers.Authorization = `Bearer ${token}`;
     requests = projects.map(async project => {
       const query = new URLSearchParams({ state: 'open', per_page: '100' });
@@ -502,15 +595,30 @@ async function requestIssues(connection) {
       const issues = await response.json();
       return issues.filter(issue => !issue.pull_request).map(issue => {
         const assigneesList = (issue.assignees && issue.assignees.length) ? issue.assignees : (issue.assignee ? [issue.assignee] : []);
+        const authorLogin = issue.user?.login || '';
+        const authorName = issue.user?.name || '';
+        const isAssignedToMe = Boolean(
+          assigneesList.some(u => {
+            const candidateNames = [u.login, u.name].filter(Boolean);
+            return candidateNames.some(c => userIdentifiers.some(id => id.toLowerCase() === c.toLowerCase()));
+          }) ||
+          (!userIdentifiers.length && connection.scope === 'assigned')
+        );
+        const isAuthorMe = Boolean(
+          [authorLogin, authorName].filter(Boolean).some(c => userIdentifiers.some(id => id.toLowerCase() === c.toLowerCase()))
+        );
         return {
           provider: 'github', project, id: issue.number, title: issue.title,
-          url: issue.html_url, state: issue.state, author: issue.user?.login || '',
+          url: issue.html_url, state: issue.state, author: authorLogin,
           authorAvatar: issue.user?.avatar_url || '',
           assignees: assigneesList.map(user => user.login).filter(Boolean).join(', '),
           assigneeDetails: assigneesList.map(user => ({
             name: user.login || '',
             avatar: user.avatar_url || ''
           })).filter(u => u.name || u.avatar),
+          currentUser: currentUsername,
+          isAssignedToMe,
+          isAuthorMe,
           updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.comments || 0,
           milestone: issue.milestone?.title || '', dueDate: issue.milestone?.due_on || '',
           labels: (issue.labels || []).map(label => ({ name: label.name || label, color: label.color || '' }))
@@ -519,6 +627,11 @@ async function requestIssues(connection) {
     });
   } else {
     const baseUrl = getGitLabBaseUrl(connection);
+    const detected = await getAuthenticatedUser('gitlab', token, baseUrl);
+    const configuredUser = (connection.username || '').trim();
+    const userIdentifiers = [configuredUser, detected.username, detected.name].filter(Boolean);
+    const currentUsername = configuredUser || detected.username || detected.name || '';
+
     headers['PRIVATE-TOKEN'] = token;
     requests = projects.map(async project => {
       const query = new URLSearchParams({ state: 'opened', per_page: '100', scope: connection.scope === 'assigned' ? 'assigned_to_me' : 'all' });
@@ -532,10 +645,22 @@ async function requestIssues(connection) {
       return issues.map(issue => {
         const assigneesList = (issue.assignees && issue.assignees.length) ? issue.assignees : (issue.assignee ? [issue.assignee] : []);
         const authorRawAvatar = issue.author?.avatar_url || issue.author?.avatar_path || issue.author?.avatarPath || '';
+        const authorUsername = issue.author?.username || '';
+        const authorName = issue.author?.name || '';
+        const isAssignedToMe = Boolean(
+          assigneesList.some(u => {
+            const candidateNames = [u.username, u.name].filter(Boolean);
+            return candidateNames.some(c => userIdentifiers.some(id => id.toLowerCase() === c.toLowerCase()));
+          }) ||
+          (!userIdentifiers.length && connection.scope === 'assigned')
+        );
+        const isAuthorMe = Boolean(
+          [authorUsername, authorName].filter(Boolean).some(c => userIdentifiers.some(id => id.toLowerCase() === c.toLowerCase()))
+        );
         return {
           provider: 'gitlab', project, id: issue.iid, title: issue.title,
           url: issue.web_url, state: issue.state,
-          author: issue.author?.username || issue.author?.name || '',
+          author: authorName || authorUsername,
           authorAvatar: resolveGitLabAvatar(authorRawAvatar, baseUrl),
           assignees: assigneesList.map(user => user.username || user.name || '').filter(Boolean).join(', '),
           assigneeDetails: assigneesList.map(user => {
@@ -545,6 +670,9 @@ async function requestIssues(connection) {
               avatar: resolveGitLabAvatar(userRawAvatar, baseUrl)
             };
           }).filter(u => u.name || u.avatar),
+          currentUser: currentUsername,
+          isAssignedToMe,
+          isAuthorMe,
           updatedAt: issue.updated_at, createdAt: issue.created_at, comments: issue.user_notes_count || 0,
           milestone: issue.milestone?.title || '', dueDate: issue.due_date || '',
           labels: (issue.labels || []).map(name => ({ name, color: labelsByName.get(name) || '' }))
@@ -601,17 +729,32 @@ ipcMain.handle('save-issue-connection', async (event, payload) => {
   const current = db.getIssueConnection(provider);
   const providedToken = payload.token?.trim();
   if (!providedToken && !current) throw new Error('El token es obligatorio.');
+  authenticatedUserCache.clear();
+
+  const finalToken = providedToken ? encryptToken(providedToken) : current.token;
+  let username = payload.username?.trim() || null;
+  if (!username) {
+    const rawToken = providedToken || decryptToken(current?.token);
+    const baseUrl = provider === 'gitlab' ? (payload.baseUrl?.trim() || current?.base_url) : null;
+    const detected = await getAuthenticatedUser(provider, rawToken, baseUrl);
+    username = detected?.username || detected?.name || null;
+  }
+
   db.saveIssueConnection({
     provider,
-    token: providedToken ? encryptToken(providedToken) : current.token,
+    token: finalToken,
     projects: payload.projects,
     scope: payload.scope,
-    base_url: provider === 'gitlab' ? payload.baseUrl?.trim() : null
+    base_url: provider === 'gitlab' ? payload.baseUrl?.trim() : null,
+    username
   });
   return { success: true };
 });
 
-ipcMain.handle('delete-issue-connection', async (event, provider) => db.deleteIssueConnection(provider));
+ipcMain.handle('delete-issue-connection', async (event, provider) => {
+  authenticatedUserCache.clear();
+  return db.deleteIssueConnection(provider);
+});
 
 ipcMain.handle('get-external-issues', async (event, provider) => {
   if (provider === 'all') {

@@ -6,6 +6,7 @@
   const issuesList = document.getElementById('issuesList');
   const kanbanView = document.getElementById('issuesKanbanView');
   const tableView = document.getElementById('issuesTableView');
+  const myIssuesBtn = document.getElementById('filterMyIssuesBtn');
   const settingsModal = document.getElementById('issueSettingsModal');
   const filters = {
     search: document.getElementById('issueSearch'), project: document.getElementById('issueProjectFilter'),
@@ -16,6 +17,7 @@
   let labelRules = [];
   let availableIssueLabels = [];
   let currentView = 'table';
+  let filterOnlyMyIssues = false;
   let tableSort = { column: 'updatedAt', direction: 'desc' };
   const STATUS_COLUMNS = [
     { id: 'pending', label: 'Pendiente' }, { id: 'in_progress', label: 'En Curso' },
@@ -76,6 +78,7 @@
       const form = card.querySelector('form');
       form.projects.value = connection?.projects || '';
       form.scope.value = connection?.scope || 'assigned';
+      if (form.username) form.username.value = connection?.username || '';
       if (provider === 'gitlab') form.baseUrl.value = connection?.base_url || '';
       form.token.value = ''; form.token.required = !connection;
       const status = card.querySelector('.connection-status');
@@ -115,9 +118,30 @@
   function getVisibleIssues() {
     const needle = filters.search.value.trim().toLocaleLowerCase('es');
     const selectedProvider = providerSelect?.value;
+    const myUserNames = [...new Set([
+      ...allIssues.map(i => i.currentUser).filter(Boolean),
+      ...connections.map(c => c.username).filter(Boolean)
+    ])].map(u => u.toLowerCase().trim()).filter(Boolean);
+
     return allIssues.filter(issue => {
       if (selectedProvider && selectedProvider !== 'all' && issue.provider !== selectedProvider) {
         return false;
+      }
+      if (filterOnlyMyIssues) {
+        const isAssigned = Boolean(
+          issue.isAssignedToMe ||
+          (issue.assigneeDetails && issue.assigneeDetails.some(a => myUserNames.some(u => (a.name || '').toLowerCase().trim() === u))) ||
+          (issue.assignees && issue.assignees.split(', ').some(a => myUserNames.some(u => a.toLowerCase().trim() === u)))
+        );
+
+        const isAuthorUnassigned = Boolean(
+          !issue.assignees && (
+            issue.isAuthorMe ||
+            myUserNames.some(u => (issue.author || '').toLowerCase().trim() === u)
+          )
+        );
+
+        if (!isAssigned && !isAuthorUnassigned) return false;
       }
       const haystack = [issue.id, issue.title, issue.author, issue.assignees, issue.project, issue.milestone, ...issue.labels.map(labelName)].join(' ').toLocaleLowerCase('es');
       return (!needle || haystack.includes(needle)) && (!filters.project.value || issue.project === filters.project.value) &&
@@ -272,9 +296,43 @@
     renderIssues();
   }
 
+  function updateMyIssuesButtonUI() {
+    if (!myIssuesBtn) return;
+    myIssuesBtn.classList.toggle('active', filterOnlyMyIssues);
+    myIssuesBtn.classList.toggle('btn-primary', filterOnlyMyIssues);
+    myIssuesBtn.classList.toggle('btn-secondary', !filterOnlyMyIssues);
+    myIssuesBtn.setAttribute('aria-pressed', filterOnlyMyIssues ? 'true' : 'false');
+
+    const detectedUsers = [...new Set([
+      ...allIssues.map(i => i.currentUser).filter(Boolean),
+      ...connections.map(c => c.username).filter(Boolean)
+    ])];
+    if (detectedUsers.length) {
+      const userList = detectedUsers.join(', ');
+      myIssuesBtn.title = filterOnlyMyIssues
+        ? `Mostrando solo tareas de ${userList}. Haz clic para mostrar todas.`
+        : `Filtrar por tareas de mis usuarios (${userList})`;
+    } else {
+      myIssuesBtn.title = filterOnlyMyIssues
+        ? 'Mostrando solo mis tareas. Haz clic para mostrar todas.'
+        : 'Filtrar por mis tareas';
+    }
+  }
+
   function renderIssues() {
     const visible = getVisibleIssues();
-    feedback.textContent = allIssues.length ? `${visible.length} de ${allIssues.length} issues abiertas.` : 'No hay issues abiertas para los filtros indicados.';
+    const myUserNames = [...new Set([
+      ...allIssues.map(i => i.currentUser).filter(Boolean),
+      ...connections.map(c => c.username).filter(Boolean)
+    ])];
+
+    if (filterOnlyMyIssues && allIssues.length && !visible.length && !myUserNames.length && !allIssues.some(i => i.isAssignedToMe)) {
+      feedback.textContent = 'No se ha podido auto-detectar tu usuario con los tokens actuales. Por favor, escribe tu nombre de usuario en Configuración ⚙ para usar «Mis tareas».';
+      feedback.className = 'issues-feedback issues-feedback--error';
+    } else {
+      feedback.textContent = allIssues.length ? `${visible.length} de ${allIssues.length} issues abiertas.` : 'No hay issues abiertas para los filtros indicados.';
+      feedback.className = 'issues-feedback';
+    }
     const sortedForTable = sortIssues(visible, tableSort.column, tableSort.direction);
     issuesList.innerHTML = sortedForTable.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
     renderKanban(visible);
@@ -293,7 +351,13 @@
   async function loadAllIssues() {
     if (!connections.length) return;
     refreshButton.disabled = true; refreshButton.textContent = 'Consultando…'; feedback.textContent = 'Consultando issues abiertas…'; feedback.className = 'issues-feedback';
-    try { const [issues] = await Promise.all([window.api.getExternalIssues(providerSelect?.value || 'all'), loadAvailableLabels()]); allIssues = issues; populateFilters(); renderIssues(); }
+    try {
+      const [issues] = await Promise.all([window.api.getExternalIssues(providerSelect?.value || 'all'), loadAvailableLabels()]);
+      allIssues = issues;
+      populateFilters();
+      updateMyIssuesButtonUI();
+      renderIssues();
+    }
     catch (error) { feedback.textContent = error.message || 'No se pudieron cargar las issues.'; feedback.className = 'issues-feedback issues-feedback--error'; }
     finally { refreshButton.disabled = false; refreshButton.textContent = 'Actualizar issues'; }
   }
@@ -335,10 +399,18 @@
     if (!token && !existing) return;
     const submit = form.querySelector('[type="submit"]'); submit.disabled = true; submit.textContent = 'Guardando…';
     try {
-      await window.api.saveIssueConnection({ provider, token, projects: form.projects.value, scope: form.scope.value, baseUrl: form.baseUrl?.value });
+      await window.api.saveIssueConnection({
+        provider,
+        token,
+        projects: form.projects.value,
+        scope: form.scope.value,
+        baseUrl: form.baseUrl?.value,
+        username: form.username?.value?.trim()
+      });
       feedback.textContent = `${provider === 'github' ? 'GitHub' : 'GitLab'} conectado correctamente.`; feedback.className = 'issues-feedback issues-feedback--success';
       await loadConnections();
       await loadAvailableLabels();
+      await loadAllIssues();
     } catch (error) { feedback.textContent = error.message || 'No se pudo guardar la conexión.'; feedback.className = 'issues-feedback issues-feedback--error'; }
     finally { submit.disabled = false; submit.textContent = 'Guardar conexión'; }
   }));
@@ -374,16 +446,20 @@
     const provider = button.closest('.integration-card').dataset.provider;
     if (!confirm(`¿Desconectar ${provider === 'github' ? 'GitHub' : 'GitLab'}? Se eliminará el token guardado.`)) return;
     await window.api.deleteIssueConnection(provider); allIssues = []; issuesList.innerHTML = '';
+    filterOnlyMyIssues = false;
+    updateMyIssuesButtonUI();
     feedback.textContent = 'Conexión eliminada.'; feedback.className = 'issues-feedback'; await loadConnections();
   }));
 
-  refreshButton.addEventListener('click', async () => {
-    const provider = providerSelect.value;
-    refreshButton.disabled = true; refreshButton.textContent = 'Consultando…'; feedback.textContent = 'Consultando issues abiertas…'; feedback.className = 'issues-feedback';
-    try { const [issues] = await Promise.all([window.api.getExternalIssues(provider), loadAvailableLabels()]); allIssues = issues; populateFilters(); renderIssues(); }
-    catch (error) { feedback.textContent = error.message || 'No se pudieron cargar las issues.'; feedback.className = 'issues-feedback issues-feedback--error'; }
-    finally { refreshButton.disabled = false; refreshButton.textContent = 'Actualizar issues'; }
-  });
+  refreshButton.addEventListener('click', loadAllIssues);
+
+  if (myIssuesBtn) {
+    myIssuesBtn.addEventListener('click', () => {
+      filterOnlyMyIssues = !filterOnlyMyIssues;
+      updateMyIssuesButtonUI();
+      renderIssues();
+    });
+  }
 
   document.querySelectorAll('.issues-table th.sortable').forEach(th => {
     th.addEventListener('click', () => {
@@ -395,6 +471,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     try {
       updateSortHeadersUI();
+      updateMyIssuesButtonUI();
       await loadConnections();
       await loadLabelRules();
       await loadAllIssues();

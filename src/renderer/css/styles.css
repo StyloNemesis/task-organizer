@@ -404,6 +404,9 @@ textarea.form-control.auto-resize {
 .issues-view-switch .btn:first-child { border-radius: 0.375rem 0 0 0.375rem; }
 .issues-view-switch .btn:last-child { border-radius: 0 0.375rem 0.375rem 0; }
 .issues-view-switch .btn.active { background: var(--primary-color); color: var(--text-light); }
+.issue-my-tasks-btn { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
+.issue-my-tasks-btn .issue-user-btn-icon { flex-shrink: 0; }
+.issue-my-tasks-btn.active { background: var(--primary-color); color: var(--text-light); border-color: var(--primary-color); }
 .issues-filters { display: grid; grid-template-columns: minmax(230px, 2fr) repeat(3, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 0.5rem; }
 .issues-feedback { color: var(--text-secondary); padding: 0.75rem 0; font-size: 0.9rem; }
 .issues-feedback--error { color: var(--danger-color); }

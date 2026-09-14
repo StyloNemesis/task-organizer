@@ -139,9 +139,16 @@ class TaskDatabase {
         projects TEXT NOT NULL DEFAULT '',
         scope TEXT NOT NULL DEFAULT 'assigned' CHECK(scope IN ('assigned', 'all')),
         base_url TEXT,
+        username TEXT,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    try {
+      this.db.exec(`ALTER TABLE issue_connections ADD COLUMN username TEXT`);
+    } catch (e) {
+      // La columna ya existe
+    }
 
     // Estado local de flujo para issues externas; no altera la issue en GitHub/GitLab.
     this.db.exec(`
@@ -332,7 +339,7 @@ class TaskDatabase {
   // ========== INTEGRACIONES DE ISSUES ==========
   getIssueConnections() {
     return this.db.prepare(`
-      SELECT provider, projects, scope, base_url, updated_at
+      SELECT provider, projects, scope, base_url, username, updated_at
       FROM issue_connections ORDER BY provider
     `).all();
   }
@@ -343,20 +350,22 @@ class TaskDatabase {
 
   saveIssueConnection(connection) {
     this.db.prepare(`
-      INSERT INTO issue_connections (provider, token, projects, scope, base_url, updated_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO issue_connections (provider, token, projects, scope, base_url, username, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
       ON CONFLICT(provider) DO UPDATE SET
         token = excluded.token,
         projects = excluded.projects,
         scope = excluded.scope,
         base_url = excluded.base_url,
+        username = excluded.username,
         updated_at = CURRENT_TIMESTAMP
     `).run(
       connection.provider,
       connection.token,
       connection.projects || '',
       connection.scope || 'assigned',
-      connection.base_url || null
+      connection.base_url || null,
+      connection.username || null
     );
     return { success: true };
   }
