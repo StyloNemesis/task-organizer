@@ -277,8 +277,9 @@
       populateProjectsFilter();
       renderPrs();
 
-      // Notificar al sidebar para actualizar el badge de inmediato
-      window.dispatchEvent(new CustomEvent('pullRequestsUpdated', { detail: { count: allPrs.length } }));
+      // Notificar al sidebar para actualizar el badge de inmediato (excluyendo borradores)
+      const activeCount = allPrs.filter(p => !p.draft).length;
+      window.dispatchEvent(new CustomEvent('pullRequestsUpdated', { detail: { count: activeCount } }));
     } catch (err) {
       console.error('Error loading PRs:', err);
       feedback.textContent = err.message || 'No se pudieron consultar las Pull Requests.';

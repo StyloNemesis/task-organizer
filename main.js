@@ -937,7 +937,7 @@ function parseAndInsertGitLabMr(mr, defaultRole, mrMap, baseUrl, userIdentifiers
       url: mr.web_url,
       project,
       state: mr.state,
-      draft: Boolean(mr.draft || mr.work_in_progress),
+      draft: Boolean(mr.draft || mr.work_in_progress || String(mr.title || '').trim().toLowerCase().startsWith('draft:') || String(mr.title || '').trim().toLowerCase().startsWith('wip:')),
       hasConflicts: Boolean(mr.has_conflicts),
       sourceBranch: mr.source_branch || '',
       targetBranch: mr.target_branch || '',
@@ -1288,13 +1288,14 @@ async function checkPullRequestsInBackground() {
     if (!connections.length) return;
 
     const results = await getAllExternalPullRequests(true);
-    const count = results.length;
+    // Excluir borradores (draft) del contador del menú lateral
+    const count = results.filter(r => !r.draft).length;
 
     const currentIds = new Set(results.map(r => r.url || `${r.provider}:${r.id}`));
 
-    // Si ya teníamos PRs rastreadas previamente y detectamos alguna nueva, notificar
+    // Si ya teníamos PRs rastreadas previamente y detectamos alguna nueva lista (no draft), notificar
     if (previousPrIds.size > 0) {
-      const brandNew = results.filter(r => !previousPrIds.has(r.url || `${r.provider}:${r.id}`));
+      const brandNew = results.filter(r => !previousPrIds.has(r.url || `${r.provider}:${r.id}`) && !r.draft);
       if (brandNew.length > 0 && Notification.isSupported()) {
         try {
           const first = brandNew[0];
@@ -1347,9 +1348,10 @@ function startPullRequestsPolling() {
 
 ipcMain.handle('get-external-pull-requests', async () => {
   const results = await getAllExternalPullRequests(true);
+  const count = results.filter(r => !r.draft).length;
   previousPrIds = new Set(results.map(r => r.url || `${r.provider}:${r.id}`));
   if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents) {
-    mainWindow.webContents.send('pull-requests-updated', { count: results.length, results });
+    mainWindow.webContents.send('pull-requests-updated', { count, results });
   }
   return results;
 });
@@ -1359,7 +1361,8 @@ ipcMain.handle('get-pull-requests-count', async () => {
   if (previousPrIds.size === 0 && prs.length > 0) {
     previousPrIds = new Set(prs.map(r => r.url || `${r.provider}:${r.id}`));
   }
-  return prs.length;
+  // Excluir borradores (draft) del contador
+  return prs.filter(r => !r.draft).length;
 });
 
 // ========== EXPORTACIÓN DE ISSUES (XLSX Y SVG) ==========

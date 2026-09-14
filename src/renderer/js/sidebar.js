@@ -96,7 +96,7 @@
       const prevCount = parseInt(badge.textContent, 10) || 0;
       badge.textContent = count > 99 ? '99+' : count;
       badge.classList.add('nav-badge--visible');
-      badge.setAttribute('title', `${count} PRs/MRs abiertas en las que participas`);
+      badge.setAttribute('title', `${count} PRs/MRs abiertas listas (excluyendo borradores)`);
       if (animate && count > prevCount) {
         badge.classList.remove('nav-badge--pulse');
         void badge.offsetWidth;
@@ -120,7 +120,9 @@
   // Escuchar eventos en tiempo real desde el proceso principal (segundo plano)
   if (window.api && window.api.onPullRequestsUpdated) {
     window.api.onPullRequestsUpdated(data => {
-      const count = data?.count;
+      const count = typeof data?.count === 'number'
+        ? data.count
+        : (Array.isArray(data?.results) ? data.results.filter(r => !r.draft).length : 0);
       updatePrBadgeUI(count, true);
     });
   }
