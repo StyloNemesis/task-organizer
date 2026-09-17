@@ -54,6 +54,15 @@
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
   const formatDate = value => value ? new Intl.DateTimeFormat('es-ES', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—';
+  const formatDueDate = value => {
+    if (!value) return '';
+    try {
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(d);
+    } catch (_) {
+      return '';
+    }
+  };
   const unique = values => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
   const labelName = label => typeof label === 'string' ? label : label.name;
   const labelColor = label => {
@@ -575,7 +584,14 @@
             ` : `<span class="issue-card-unassigned">Sin asignar</span>`}
           </div>`;
         const peopleHtml = `<div class="issue-card-people">${reporterHtml}${assigneesHtml}</div>`;
-        return `<article class="issue-kanban-card" data-issue-url="${escapeHtml(issue.url)}" data-issue-id="${escapeHtml(issue.id)}" data-issue-title="${escapeHtml(issue.title)}"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div>${peopleHtml}</article>`;
+        const milestoneText = (typeof issue.milestone === 'string' ? issue.milestone : (issue.milestone?.title || '')).trim();
+        const dueDateStr = formatDueDate(issue.dueDate);
+        const milestoneHtml = milestoneText ? `
+          <span class="issue-card-milestone" title="Milestone: ${escapeHtml(milestoneText)}${dueDateStr ? ` (Vence: ${escapeHtml(dueDateStr)})` : ''}">
+            <svg class="issue-card-milestone-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M7.75 0a.75.75 0 0 1 .75.75V3h3.634a1.75 1.75 0 0 1 1.516.876l2.124 3.67a1.75 1.75 0 0 1 0 1.758l-2.124 3.67A1.75 1.75 0 0 1 12.134 14H8.5v1.25a.75.75 0 0 1-1.5 0V14H2.75A1.75 1.75 0 0 1 1 12.25v-8.5C1 2.784 1.784 2 2.75 2H7V.75A.75.75 0 0 1 7.75 0zm.75 4.5v8h3.634a.25.25 0 0 0 .216-.125l2.124-3.67a.25.25 0 0 0 0-.251l-2.124-3.67a.25.25 0 0 0-.216-.125H8.5zM7 3.5H2.75a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25H7V3.5z"/></svg>
+            <span class="issue-card-milestone-text">${escapeHtml(milestoneText)}</span>
+          </span>` : '';
+        return `<article class="issue-kanban-card" data-issue-url="${escapeHtml(issue.url)}" data-issue-id="${escapeHtml(issue.id)}" data-issue-title="${escapeHtml(issue.title)}"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><div class="issue-card-meta"><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small>${milestoneHtml}</div><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div>${peopleHtml}</article>`;
       }).join('')}</div></section>`;
     }).join('');
   }
