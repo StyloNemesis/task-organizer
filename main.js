@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage, session, dialog, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, session, dialog, Notification, clipboard, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const zlib = require('zlib');
@@ -38,6 +38,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     frame: false,
+    fullscreenable: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -87,6 +88,34 @@ function createWindow() {
     const now = Date.now();
     if (now - (pullRequestsCache.timestamp || 0) > 60000) {
       checkPullRequestsInBackground();
+    }
+  });
+
+  mainWindow.on('resize', () => {
+    if (!mainWindow || process.platform !== 'darwin') return;
+    const currentDisplay = screen.getDisplayMatching(mainWindow.getBounds());
+    const workArea = currentDisplay.workArea;
+    const bounds = mainWindow.getBounds();
+    const isAtWorkArea = Math.abs(bounds.x - workArea.x) <= 4 &&
+                         Math.abs(bounds.y - workArea.y) <= 4 &&
+                         Math.abs(bounds.width - workArea.width) <= 4 &&
+                         Math.abs(bounds.height - workArea.height) <= 4;
+    if (!isAtWorkArea) {
+      unmaximizedBounds = bounds;
+    }
+  });
+
+  mainWindow.on('move', () => {
+    if (!mainWindow || process.platform !== 'darwin') return;
+    const currentDisplay = screen.getDisplayMatching(mainWindow.getBounds());
+    const workArea = currentDisplay.workArea;
+    const bounds = mainWindow.getBounds();
+    const isAtWorkArea = Math.abs(bounds.x - workArea.x) <= 4 &&
+                         Math.abs(bounds.y - workArea.y) <= 4 &&
+                         Math.abs(bounds.width - workArea.width) <= 4 &&
+                         Math.abs(bounds.height - workArea.height) <= 4;
+    if (!isAtWorkArea) {
+      unmaximizedBounds = bounds;
     }
   });
 
@@ -214,6 +243,12 @@ ipcMain.handle('delete-note', async (event, id) => {
 // IPC Handler para abrir enlaces externos
 ipcMain.handle('open-external', async (event, url) => {
   shell.openExternal(url);
+});
+
+// IPC Handler para copiar texto al portapapeles
+ipcMain.handle('copy-to-clipboard', async (event, text) => {
+  clipboard.writeText(String(text || ''));
+  return true;
 });
 
 function encryptToken(token) {
@@ -1875,10 +1910,48 @@ ipcMain.handle('export-issues', async (event, { format, issues, options = {} }) 
   throw new Error(`Formato no soportado: ${format}`);
 });
 
+let unmaximizedBounds = null;
+
 // IPC Handlers para controles de ventana
 ipcMain.on('window-minimize', () => mainWindow && mainWindow.minimize());
 ipcMain.on('window-maximize', () => {
   if (!mainWindow) return;
-  mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+
+  if (process.platform === 'darwin') {
+    const currentDisplay = screen.getDisplayMatching(mainWindow.getBounds());
+    const workArea = currentDisplay.workArea;
+    const currentBounds = mainWindow.getBounds();
+
+    const isAtWorkArea = Math.abs(currentBounds.x - workArea.x) <= 4 &&
+                         Math.abs(currentBounds.y - workArea.y) <= 4 &&
+                         Math.abs(currentBounds.width - workArea.width) <= 4 &&
+                         Math.abs(currentBounds.height - workArea.height) <= 4;
+
+    if (isAtWorkArea) {
+      if (unmaximizedBounds) {
+        mainWindow.setBounds(unmaximizedBounds, true);
+      } else {
+        const defaultWidth = Math.min(1200, workArea.width - 40);
+        const defaultHeight = Math.min(800, workArea.height - 40);
+        mainWindow.setBounds({
+          x: Math.round(workArea.x + (workArea.width - defaultWidth) / 2),
+          y: Math.round(workArea.y + (workArea.height - defaultHeight) / 2),
+          width: defaultWidth,
+          height: defaultHeight
+        }, true);
+      }
+      unmaximizedBounds = null;
+    } else {
+      unmaximizedBounds = currentBounds;
+      mainWindow.setBounds({
+        x: workArea.x,
+        y: workArea.y,
+        width: workArea.width,
+        height: workArea.height
+      }, true);
+    }
+  } else {
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  }
 });
 ipcMain.on('window-close', () => mainWindow && mainWindow.close());

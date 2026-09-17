@@ -17,9 +17,29 @@
   const exportScopeVisibleLabel = document.getElementById('exportScopeVisibleLabel');
   const exportScopeAllLabel = document.getElementById('exportScopeAllLabel');
   const filters = {
-    search: document.getElementById('issueSearch'), project: document.getElementById('issueProjectFilter'),
-    assignee: document.getElementById('issueAssigneeFilter'), label: document.getElementById('issueLabelFilter')
+    search: document.getElementById('issueSearch'),
+    project: document.getElementById('issueProjectFilter'),
+    milestone: document.getElementById('issueMilestoneFilter'),
+    label: document.getElementById('issueLabelFilter')
   };
+  const assigneeMultiSelect = document.getElementById('issueAssigneeMultiSelect');
+  const assigneeToggle = document.getElementById('issueAssigneeToggle');
+  const assigneeLabel = document.getElementById('issueAssigneeLabel');
+  const assigneeBadge = document.getElementById('issueAssigneeBadge');
+  const assigneeClearBtn = document.getElementById('issueAssigneeClearBtn');
+  const assigneeDropdown = document.getElementById('issueAssigneeDropdown');
+  const assigneeSearch = document.getElementById('issueAssigneeSearch');
+  const assigneeSelectAllBtn = document.getElementById('issueAssigneeSelectAll');
+  const assigneeClearAllBtn = document.getElementById('issueAssigneeClearAll');
+  const assigneeOptions = document.getElementById('issueAssigneeOptions');
+  const selectedAssignees = new Set();
+  const issueContextMenu = document.getElementById('issueContextMenu');
+  const contextCopyIssueLink = document.getElementById('contextCopyIssueLink');
+  const contextOpenIssueBrowser = document.getElementById('contextOpenIssueBrowser');
+  const issueToast = document.getElementById('issueToast');
+  const issueToastText = document.getElementById('issueToastText');
+  let activeContextIssue = null;
+  let toastTimeout = null;
   let connections = [];
   let allIssues = [];
   let labelRules = [];
@@ -77,6 +97,118 @@
 
   function openSettings() { settingsModal.classList.add('active'); settingsModal.setAttribute('aria-hidden', 'false'); }
   function closeSettings() { settingsModal.classList.remove('active'); settingsModal.setAttribute('aria-hidden', 'true'); }
+
+  function showToast(message) {
+    if (!issueToast || !issueToastText) return;
+    issueToastText.textContent = message;
+    issueToast.hidden = false;
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      issueToast.hidden = true;
+    }, 2500);
+  }
+
+  function hideIssueContextMenu() {
+    if (!issueContextMenu || issueContextMenu.hidden) return;
+    issueContextMenu.hidden = true;
+    activeContextIssue = null;
+  }
+
+  function showIssueContextMenu(x, y, issueData) {
+    if (!issueContextMenu) return;
+    activeContextIssue = issueData;
+    issueContextMenu.hidden = false;
+
+    const menuWidth = 210;
+    const menuHeight = 85;
+    const padding = 10;
+    let posX = x;
+    let posY = y;
+
+    if (posX + menuWidth > window.innerWidth - padding) {
+      posX = Math.max(padding, x - menuWidth);
+    }
+    if (posY + menuHeight > window.innerHeight - padding) {
+      posY = Math.max(padding, y - menuHeight);
+    }
+
+    issueContextMenu.style.left = `${posX}px`;
+    issueContextMenu.style.top = `${posY}px`;
+
+    setTimeout(() => contextCopyIssueLink?.focus(), 20);
+  }
+
+  async function copyActiveIssueLink() {
+    if (!activeContextIssue || !activeContextIssue.url) {
+      hideIssueContextMenu();
+      return;
+    }
+    const { url, id } = activeContextIssue;
+    hideIssueContextMenu();
+
+    let copied = false;
+    try {
+      if (window.api && window.api.copyToClipboard) {
+        await window.api.copyToClipboard(url);
+        copied = true;
+      }
+    } catch (e) {
+      console.warn('Error with window.api.copyToClipboard:', e);
+    }
+
+    if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch (e) {
+        console.warn('Error with navigator.clipboard:', e);
+      }
+    }
+
+    if (!copied) {
+      const textarea = document.createElement('textarea');
+      textarea.value = url;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      copied = document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+
+    if (copied) {
+      showToast(id ? `Enlace de la issue #${id} copiado al portapapeles` : 'Enlace copiado al portapapeles');
+    }
+  }
+
+  function openActiveIssueInBrowser() {
+    if (!activeContextIssue || !activeContextIssue.url) {
+      hideIssueContextMenu();
+      return;
+    }
+    const url = activeContextIssue.url;
+    hideIssueContextMenu();
+    if (window.api && window.api.openExternal) {
+      window.api.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  function handleIssueContextMenu(event) {
+    const target = event.target.closest('[data-issue-url]');
+    if (!target) return;
+    const url = target.dataset.issueUrl;
+    if (!url) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    showIssueContextMenu(event.clientX, event.clientY, {
+      url,
+      id: target.dataset.issueId || '',
+      title: target.dataset.issueTitle || ''
+    });
+  }
 
   function updateExportFormatUI() {
     if (!exportForm) return;
@@ -144,6 +276,181 @@
     if (available.size) providerSelect.value = 'all';
   }
 
+  function getAssigneeData() {
+    const map = new Map();
+    let unassignedCount = 0;
+
+    for (const issue of allIssues) {
+      let hasAssignee = false;
+      if (issue.assigneeDetails && issue.assigneeDetails.length > 0) {
+        hasAssignee = true;
+        for (const a of issue.assigneeDetails) {
+          const name = (a.name || '').trim();
+          if (!name) continue;
+          const entry = map.get(name) || { name, avatar: a.avatar || '', count: 0 };
+          if (!entry.avatar && a.avatar) entry.avatar = a.avatar;
+          entry.count += 1;
+          map.set(name, entry);
+        }
+      } else if (issue.assignees && issue.assignees.trim()) {
+        hasAssignee = true;
+        const names = issue.assignees.split(',').map(s => s.trim()).filter(Boolean);
+        for (const name of names) {
+          const entry = map.get(name) || { name, avatar: '', count: 0 };
+          entry.count += 1;
+          map.set(name, entry);
+        }
+      }
+
+      if (!hasAssignee) {
+        unassignedCount += 1;
+      }
+    }
+
+    const list = [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
+    return { list, unassignedCount };
+  }
+
+  function updateAssigneeToggleUI() {
+    if (!assigneeLabel) return;
+    const count = selectedAssignees.size;
+    if (count === 0) {
+      assigneeLabel.textContent = 'Cualquier responsable';
+      if (assigneeBadge) assigneeBadge.hidden = true;
+      if (assigneeClearBtn) assigneeClearBtn.hidden = true;
+      if (assigneeToggle) assigneeToggle.title = 'Filtrar por responsable';
+    } else if (count === 1) {
+      const single = [...selectedAssignees][0];
+      const displayName = single === '__unassigned__' ? 'Sin asignar' : single;
+      assigneeLabel.textContent = displayName;
+      if (assigneeBadge) assigneeBadge.hidden = true;
+      if (assigneeClearBtn) assigneeClearBtn.hidden = false;
+      if (assigneeToggle) assigneeToggle.title = `Responsable: ${displayName}`;
+    } else {
+      assigneeLabel.textContent = `${count} responsables`;
+      if (assigneeBadge) {
+        assigneeBadge.textContent = String(count);
+        assigneeBadge.hidden = false;
+      }
+      if (assigneeClearBtn) assigneeClearBtn.hidden = false;
+      const namesList = [...selectedAssignees].map(n => n === '__unassigned__' ? 'Sin asignar' : n).join(', ');
+      if (assigneeToggle) assigneeToggle.title = `Responsables: ${namesList}`;
+    }
+  }
+
+  function populateAssigneeFilter() {
+    if (!assigneeOptions) return;
+    const { list, unassignedCount } = getAssigneeData();
+
+    // Prune selections that no longer exist
+    const validNames = new Set(list.map(item => item.name));
+    if (unassignedCount > 0) validNames.add('__unassigned__');
+    for (const name of selectedAssignees) {
+      if (!validNames.has(name)) {
+        selectedAssignees.delete(name);
+      }
+    }
+
+    if (!list.length && !unassignedCount) {
+      assigneeOptions.innerHTML = '<div class="custom-multiselect-empty">No hay responsables</div>';
+      updateAssigneeToggleUI();
+      return;
+    }
+
+    let html = '';
+    if (unassignedCount > 0) {
+      const isSelected = selectedAssignees.has('__unassigned__');
+      html += `
+        <label class="custom-multiselect-item ${isSelected ? 'is-selected' : ''}" data-name="sin asignar">
+          <input type="checkbox" class="custom-multiselect-checkbox" value="__unassigned__" ${isSelected ? 'checked' : ''}>
+          <span class="issue-avatar-wrapper" style="--avatar-size: 18px;">
+            <span class="issue-user-avatar-fallback" style="width:18px;height:18px;font-size:10px;">—</span>
+          </span>
+          <span class="custom-multiselect-name">Sin asignar</span>
+          <span class="custom-multiselect-count">${unassignedCount}</span>
+        </label>
+      `;
+    }
+
+    for (const item of list) {
+      const isSelected = selectedAssignees.has(item.name);
+      html += `
+        <label class="custom-multiselect-item ${isSelected ? 'is-selected' : ''}" data-name="${escapeHtml(item.name)}">
+          <input type="checkbox" class="custom-multiselect-checkbox" value="${escapeHtml(item.name)}" ${isSelected ? 'checked' : ''}>
+          ${avatarMarkup(item.avatar, item.name, 18, 'issue-assignee-avatar')}
+          <span class="custom-multiselect-name">${escapeHtml(item.name)}</span>
+          <span class="custom-multiselect-count">${item.count}</span>
+        </label>
+      `;
+    }
+
+    assigneeOptions.innerHTML = html;
+    updateAssigneeToggleUI();
+  }
+
+  function openAssigneeDropdown() {
+    if (!assigneeDropdown) return;
+    assigneeDropdown.hidden = false;
+    assigneeToggle?.setAttribute('aria-expanded', 'true');
+    if (assigneeSearch) {
+      assigneeSearch.value = '';
+      filterAssigneeOptions('');
+      setTimeout(() => assigneeSearch.focus(), 40);
+    }
+  }
+
+  function closeAssigneeDropdown() {
+    if (!assigneeDropdown || assigneeDropdown.hidden) return;
+    assigneeDropdown.hidden = true;
+    assigneeToggle?.setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleAssigneeDropdown() {
+    if (!assigneeDropdown) return;
+    if (assigneeDropdown.hidden) {
+      openAssigneeDropdown();
+    } else {
+      closeAssigneeDropdown();
+    }
+  }
+
+  function clearAllAssignees() {
+    selectedAssignees.clear();
+    const items = assigneeOptions?.querySelectorAll('.custom-multiselect-item') || [];
+    items.forEach(item => {
+      item.classList.remove('is-selected');
+      const cb = item.querySelector('.custom-multiselect-checkbox');
+      if (cb) cb.checked = false;
+    });
+    updateAssigneeToggleUI();
+    renderIssues();
+  }
+
+  function filterAssigneeOptions(query) {
+    if (!assigneeOptions) return;
+    const q = query.trim().toLocaleLowerCase('es');
+    const items = assigneeOptions.querySelectorAll('.custom-multiselect-item');
+    let visibleCount = 0;
+    items.forEach(item => {
+      const name = (item.dataset.name || '').toLocaleLowerCase('es');
+      const matches = !q || name.includes(q);
+      item.style.display = matches ? 'flex' : 'none';
+      if (matches) visibleCount++;
+    });
+    let emptyMsg = assigneeOptions.querySelector('.custom-multiselect-search-empty');
+    if (visibleCount === 0) {
+      if (!emptyMsg) {
+        emptyMsg = document.createElement('div');
+        emptyMsg.className = 'custom-multiselect-empty custom-multiselect-search-empty';
+        emptyMsg.textContent = 'No se encontraron responsables';
+        assigneeOptions.appendChild(emptyMsg);
+      }
+      emptyMsg.style.display = 'block';
+    } else if (emptyMsg) {
+      emptyMsg.style.display = 'none';
+    }
+  }
+
   function populateFilters() {
     const setOptions = (element, values, label) => {
       const selected = element.value;
@@ -151,7 +458,21 @@
       element.value = [...element.options].some(option => option.value === selected) ? selected : '';
     };
     setOptions(filters.project, allIssues.map(issue => issue.project), 'Todos los proyectos');
-    setOptions(filters.assignee, allIssues.flatMap(issue => issue.assignees ? issue.assignees.split(', ') : []), 'Cualquier responsable');
+    populateAssigneeFilter();
+
+    if (filters.milestone) {
+      const selectedMilestone = filters.milestone.value;
+      const milestones = unique(allIssues.map(issue => (issue.milestone || '').trim()).filter(Boolean));
+      const hasUnassignedMilestone = allIssues.some(issue => !(issue.milestone || '').trim());
+      let optionsHtml = '<option value="">Todos los milestones</option>';
+      if (hasUnassignedMilestone) {
+        optionsHtml += '<option value="__none__">Sin milestone</option>';
+      }
+      optionsHtml += milestones.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+      filters.milestone.innerHTML = optionsHtml;
+      filters.milestone.value = [...filters.milestone.options].some(opt => opt.value === selectedMilestone) ? selectedMilestone : '';
+    }
+
     setOptions(filters.label, [...availableIssueLabels.map(label => label.name), ...allIssues.flatMap(issue => issue.labels.map(labelName))], 'Todas las etiquetas');
   }
 
@@ -192,9 +513,29 @@
 
         if (!isAssigned && !isAuthorUnassigned) return false;
       }
+
+      if (selectedAssignees.size > 0) {
+        const issueAssigneeList = (issue.assigneeDetails && issue.assigneeDetails.length)
+          ? issue.assigneeDetails.map(a => (a.name || '').trim()).filter(Boolean)
+          : (issue.assignees ? issue.assignees.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+        const matchesSelected = issueAssigneeList.some(name => selectedAssignees.has(name));
+        const matchesUnassigned = selectedAssignees.has('__unassigned__') && issueAssigneeList.length === 0;
+        if (!matchesSelected && !matchesUnassigned) return false;
+      }
+
+      const issueMilestone = (issue.milestone || '').trim();
+      if (filters.milestone?.value) {
+        if (filters.milestone.value === '__none__') {
+          if (issueMilestone) return false;
+        } else if (issueMilestone !== filters.milestone.value) {
+          return false;
+        }
+      }
+
       const haystack = [issue.id, issue.title, issue.author, issue.assignees, issue.project, issue.milestone, ...issue.labels.map(labelName)].join(' ').toLocaleLowerCase('es');
       return (!needle || haystack.includes(needle)) && (!filters.project.value || issue.project === filters.project.value) &&
-        (!filters.assignee.value || issue.assignees.split(', ').includes(filters.assignee.value)) && (!filters.label.value || issue.labels.some(label => labelName(label) === filters.label.value));
+        (!filters.label.value || issue.labels.some(label => labelName(label) === filters.label.value));
     });
   }
 
@@ -234,7 +575,7 @@
             ` : `<span class="issue-card-unassigned">Sin asignar</span>`}
           </div>`;
         const peopleHtml = `<div class="issue-card-people">${reporterHtml}${assigneesHtml}</div>`;
-        return `<article class="issue-kanban-card"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div>${peopleHtml}</article>`;
+        return `<article class="issue-kanban-card" data-issue-url="${escapeHtml(issue.url)}" data-issue-id="${escapeHtml(issue.id)}" data-issue-title="${escapeHtml(issue.title)}"><a class="external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><small class="issue-card-project">${providerIcon(issue.provider)}${escapeHtml(issue.project)}</small><div class="issue-labels">${issue.labels.map(labelMarkup).join('')}</div>${peopleHtml}</article>`;
       }).join('')}</div></section>`;
     }).join('');
   }
@@ -383,7 +724,7 @@
       feedback.className = 'issues-feedback';
     }
     const sortedForTable = sortIssues(visible, tableSort.column, tableSort.direction);
-    issuesList.innerHTML = sortedForTable.map(issue => `<tr><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
+    issuesList.innerHTML = sortedForTable.map(issue => `<tr data-issue-url="${escapeHtml(issue.url)}" data-issue-id="${escapeHtml(issue.id)}" data-issue-title="${escapeHtml(issue.title)}"><td><span class="issue-provider issue-provider-with-icon ${issue.provider === 'gitlab' ? 'issue-provider--gitlab' : ''}">${providerIcon(issue.provider)}${issue.provider === 'github' ? 'GitHub' : 'GitLab'}</span></td><td><a class="issue-title external-link" href="${escapeHtml(issue.url)}">#${escapeHtml(issue.id)} · ${escapeHtml(issue.title)}</a><span class="issue-author">${avatarMarkup(issue.authorAvatar, issue.author, 18, 'issue-author-avatar')}<span class="issue-table-reporter-label">Reporter:</span> <span>${escapeHtml(issue.author || '—')}</span></span></td><td>${escapeHtml(issue.project)}</td><td>${assigneesMarkup(issue)}</td><td><div class="issue-labels">${issue.labels.length ? issue.labels.map(labelMarkup).join('') : '—'}</div></td><td>${escapeHtml(issue.milestone || '—')}</td><td>${escapeHtml(issue.comments)}</td><td>${escapeHtml(formatDate(issue.createdAt))}</td><td>${escapeHtml(formatDate(issue.updatedAt))}</td></tr>`).join('');
     renderKanban(visible);
   }
 
@@ -486,6 +827,120 @@
     });
   }
   Object.values(filters).forEach(filter => filter.addEventListener(filter === filters.search ? 'input' : 'change', renderIssues));
+
+  if (assigneeToggle) {
+    assigneeToggle.addEventListener('click', event => {
+      if (event.target.closest('#issueAssigneeClearBtn')) return;
+      toggleAssigneeDropdown();
+    });
+  }
+
+  if (assigneeClearBtn) {
+    assigneeClearBtn.addEventListener('click', event => {
+      event.stopPropagation();
+      clearAllAssignees();
+    });
+    assigneeClearBtn.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        event.stopPropagation();
+        clearAllAssignees();
+      }
+    });
+  }
+
+  if (assigneeOptions) {
+    assigneeOptions.addEventListener('change', event => {
+      const cb = event.target.closest('.custom-multiselect-checkbox');
+      if (!cb) return;
+      const value = cb.value;
+      const itemRow = cb.closest('.custom-multiselect-item');
+      if (cb.checked) {
+        selectedAssignees.add(value);
+        itemRow?.classList.add('is-selected');
+      } else {
+        selectedAssignees.delete(value);
+        itemRow?.classList.remove('is-selected');
+      }
+      updateAssigneeToggleUI();
+      renderIssues();
+    });
+  }
+
+  if (assigneeSelectAllBtn) {
+    assigneeSelectAllBtn.addEventListener('click', () => {
+      const items = assigneeOptions?.querySelectorAll('.custom-multiselect-item') || [];
+      items.forEach(item => {
+        if (item.style.display !== 'none') {
+          const cb = item.querySelector('.custom-multiselect-checkbox');
+          if (cb) {
+            cb.checked = true;
+            selectedAssignees.add(cb.value);
+            item.classList.add('is-selected');
+          }
+        }
+      });
+      updateAssigneeToggleUI();
+      renderIssues();
+    });
+  }
+
+  if (assigneeClearAllBtn) {
+    assigneeClearAllBtn.addEventListener('click', clearAllAssignees);
+  }
+
+  if (assigneeSearch) {
+    assigneeSearch.addEventListener('input', () => {
+      filterAssigneeOptions(assigneeSearch.value);
+    });
+    assigneeSearch.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        closeAssigneeDropdown();
+        assigneeToggle?.focus();
+      }
+    });
+  }
+
+  document.addEventListener('click', event => {
+    if (assigneeMultiSelect && !assigneeMultiSelect.contains(event.target)) {
+      closeAssigneeDropdown();
+    }
+    if (issueContextMenu && !issueContextMenu.contains(event.target)) {
+      hideIssueContextMenu();
+    }
+  });
+
+  document.addEventListener('contextmenu', event => {
+    if (!event.target.closest('[data-issue-url]')) {
+      hideIssueContextMenu();
+    }
+  });
+
+  window.addEventListener('resize', hideIssueContextMenu);
+  window.addEventListener('scroll', hideIssueContextMenu, true);
+
+  if (tableView) tableView.addEventListener('contextmenu', handleIssueContextMenu);
+  if (kanbanView) kanbanView.addEventListener('contextmenu', handleIssueContextMenu);
+
+  if (contextCopyIssueLink) {
+    contextCopyIssueLink.addEventListener('click', copyActiveIssueLink);
+  }
+
+  if (contextOpenIssueBrowser) {
+    contextOpenIssueBrowser.addEventListener('click', openActiveIssueInBrowser);
+  }
+
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      if (issueContextMenu && !issueContextMenu.hidden) {
+        hideIssueContextMenu();
+      }
+      if (assigneeDropdown && !assigneeDropdown.hidden) {
+        closeAssigneeDropdown();
+        assigneeToggle?.focus();
+      }
+    }
+  });
   if (providerSelect) providerSelect.addEventListener('change', renderIssues);
   document.querySelectorAll('.issue-view-btn').forEach(button => button.addEventListener('click', () => {
     currentView = button.dataset.view;
