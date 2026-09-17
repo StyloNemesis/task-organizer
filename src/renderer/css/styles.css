@@ -793,6 +793,11 @@ textarea.form-control.auto-resize {
 .issue-kanban-card { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.7rem; box-shadow: var(--shadow-sm); }
 .issue-kanban-card a { color: var(--text-primary); display: block; font-size: 0.8rem; font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
 .issue-kanban-card small { display: block; margin: 0.45rem 0; color: var(--text-secondary); font-size: 0.7rem; overflow-wrap: anywhere; }
+.issue-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.55rem; margin: 0.45rem 0; }
+.issue-card-meta .issue-card-project { margin: 0; }
+.issue-card-milestone { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.7rem; color: var(--text-secondary); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 0.12rem 0.45rem; border-radius: 4px; max-width: 100%; overflow: hidden; line-height: 1.2; }
+.issue-card-milestone-icon { flex-shrink: 0; color: var(--text-secondary); }
+.issue-card-milestone-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
 .issue-card-project { display: flex !important; align-items: center; gap: 0.35rem; }
 .issue-provider-icon { width: 14px; height: 14px; flex: 0 0 14px; }
 .issue-provider-icon--github { color: var(--text-primary); }
