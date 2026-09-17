@@ -23,7 +23,34 @@
         <div class="integration-notice">Configura GitHub o GitLab desde <strong>Configuración</strong>. Los tokens se guardan cifrados en el almacén seguro de tu sistema.</div>
         <section class="issues-section">
           <div class="issues-toolbar"><h3>Issues abiertas</h3><div><div class="issues-view-switch" role="group" aria-label="Vista"><button class="btn btn-secondary issue-view-btn active" data-view="table">Tabla</button><button class="btn btn-secondary issue-view-btn" data-view="kanban">Kanban</button></div><button id="filterMyIssuesBtn" class="btn btn-secondary issue-my-tasks-btn" type="button" title="Filtrar por mis tareas"><svg class="issue-user-btn-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0Zm4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4Zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10Z"/></svg><span>Mis tareas</span></button><select id="issueProvider" class="form-control"><option value="all">Todos los proveedores</option><option value="github">GitHub</option><option value="gitlab">GitLab</option></select><button id="refreshIssues" class="btn btn-primary">Actualizar issues</button><button id="openExportIssuesModal" class="btn btn-secondary issue-export-btn" type="button" title="Exportar issues a Excel (.xlsx) o Vectorial (.svg)"><svg class="issue-export-btn-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M8.5 1.5a.5.5 0 0 0-1 0v7.793L5.354 7.146a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 9.293V1.5z"/><path d="M14 14V9.5a.5.5 0 0 0-1 0V13H3V9.5a.5.5 0 0 0-1 0V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1z"/></svg><span>Exportar</span></button></div></div>
-          <div class="issues-filters"><input id="issueSearch" class="form-control" type="search" placeholder="Buscar título, número o autor"><select id="issueProjectFilter" class="form-control"><option value="">Todos los proyectos</option></select><select id="issueAssigneeFilter" class="form-control"><option value="">Cualquier responsable</option></select><select id="issueLabelFilter" class="form-control"><option value="">Todas las etiquetas</option></select></div>
+          <div class="issues-filters">
+            <input id="issueSearch" class="form-control" type="search" placeholder="Buscar título, número o autor">
+            <select id="issueProjectFilter" class="form-control"><option value="">Todos los proyectos</option></select>
+            <div class="custom-multiselect" id="issueAssigneeMultiSelect">
+              <button type="button" class="form-control custom-multiselect-toggle" id="issueAssigneeToggle" aria-haspopup="listbox" aria-expanded="false">
+                <span class="custom-multiselect-selected" id="issueAssigneeLabel">Cualquier responsable</span>
+                <span class="custom-multiselect-badge" id="issueAssigneeBadge" hidden>0</span>
+                <span class="custom-multiselect-clear-btn" id="issueAssigneeClearBtn" role="button" tabindex="0" title="Limpiar selección" hidden aria-label="Limpiar selección">&times;</span>
+                <svg class="custom-multiselect-arrow" width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>
+              </button>
+              <div class="custom-multiselect-dropdown" id="issueAssigneeDropdown" hidden>
+                <div class="custom-multiselect-header">
+                  <div class="custom-multiselect-search-wrap">
+                    <svg class="custom-multiselect-search-icon" width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+                    <input type="search" id="issueAssigneeSearch" class="custom-multiselect-search" placeholder="Buscar responsable…" autocomplete="off">
+                  </div>
+                  <div class="custom-multiselect-actions">
+                    <button type="button" class="btn-link" id="issueAssigneeSelectAll">Todos</button>
+                    <span class="custom-multiselect-sep">·</span>
+                    <button type="button" class="btn-link" id="issueAssigneeClearAll">Limpiar</button>
+                  </div>
+                </div>
+                <div class="custom-multiselect-options" id="issueAssigneeOptions" role="listbox" aria-multiselectable="true"></div>
+              </div>
+            </div>
+            <select id="issueMilestoneFilter" class="form-control"><option value="">Todos los milestones</option></select>
+            <select id="issueLabelFilter" class="form-control"><option value="">Todas las etiquetas</option></select>
+          </div>
           <div id="issuesFeedback" class="issues-feedback">Configura una conexión para consultar tus issues.</div>
           <div id="issuesTableView" class="issues-table-wrap"><table class="issues-table"><thead><tr><th class="sortable" data-sort="provider" title="Ordenar por proveedor"><span class="th-content"><span>Proveedor</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="title" title="Ordenar por issue o título"><span class="th-content"><span>Issue</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="project" title="Ordenar por proyecto"><span class="th-content"><span>Proyecto</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="assignees" title="Ordenar por responsable"><span class="th-content"><span>Responsable</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="labels" title="Ordenar por etiquetas"><span class="th-content"><span>Etiquetas</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="milestone" title="Ordenar por milestone"><span class="th-content"><span>Milestone</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="comments" title="Ordenar por número de comentarios"><span class="th-content"><span>Comentarios</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable" data-sort="createdAt" title="Ordenar por fecha de creación"><span class="th-content"><span>Creada</span><span class="sort-icon" aria-hidden="true">↕</span></span></th><th class="sortable sort-active sort-desc" data-sort="updatedAt" title="Ordenar por fecha de actualización"><span class="th-content"><span>Actualizada</span><span class="sort-icon" aria-hidden="true">↓</span></span></th></tr></thead><tbody id="issuesList"></tbody></table></div>
           <div id="issuesKanbanView" class="issues-kanban" hidden></div>
@@ -133,6 +160,28 @@
             </form>
           </div>
         </div>
+      </div>
+      <div id="issueContextMenu" class="custom-context-menu" hidden role="menu">
+        <button type="button" class="context-menu-item" id="contextCopyIssueLink" role="menuitem">
+          <svg class="context-menu-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25v-7.5z"/>
+            <path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25v-7.5zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25h-7.5z"/>
+          </svg>
+          <span>Copiar enlace a la issue</span>
+        </button>
+        <button type="button" class="context-menu-item" id="contextOpenIssueBrowser" role="menuitem">
+          <svg class="context-menu-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M8.636 3.5a.5.5 0 0 0-.5-.5H1.5A1.5 1.5 0 0 0 0 4.5v10A1.5 1.5 0 0 0 1.5 16h10a1.5 1.5 0 0 0 1.5-1.5V7.864a.5.5 0 0 0-1 0V14.5a.5.5 0 0 1-.5.5h-10a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5h6.636a.5.5 0 0 0 .5-.5z"/>
+            <path fill-rule="evenodd" d="M16 .5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0 0 1h3.793L6.146 9.146a.5.5 0 1 0 .708.708L15 1.707V5.5a.5.5 0 0 0 1 0v-5z"/>
+          </svg>
+          <span>Abrir en el navegador</span>
+        </button>
+      </div>
+      <div id="issueToast" class="issue-toast" hidden role="status" aria-live="polite">
+        <svg class="issue-toast-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <path fill-rule="evenodd" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/>
+        </svg>
+        <span id="issueToastText">Enlace copiado al portapapeles</span>
       </div>
     </main>
   </div>

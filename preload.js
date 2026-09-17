@@ -25,8 +25,9 @@ contextBridge.exposeInMainWorld('api', {
   updateNote: (id, note) => ipcRenderer.invoke('update-note', id, note),
   deleteNote: (id) => ipcRenderer.invoke('delete-note', id),
   
-  // Abrir enlaces externos
+  // Abrir enlaces externos y portapapeles
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  copyToClipboard: (text) => ipcRenderer.invoke('copy-to-clipboard', text),
 
   // Issues de GitHub y GitLab
   getIssueConnections: () => ipcRenderer.invoke('get-issue-connections'),
