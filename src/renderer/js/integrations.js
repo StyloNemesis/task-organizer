@@ -49,7 +49,8 @@
   let tableSort = { column: 'updatedAt', direction: 'desc' };
   const STATUS_COLUMNS = [
     { id: 'pending', label: 'Pendiente' }, { id: 'in_progress', label: 'En Curso' },
-    { id: 'blocked', label: 'Bloqueado' }, { id: 'testing', label: 'Testing' }, { id: 'completed', label: 'Completada' }
+    { id: 'blocked', label: 'Bloqueado' }, { id: 'pending_deployment', label: 'Pendiente despliegue' },
+    { id: 'testing', label: 'Testing' }, { id: 'completed', label: 'Completada' }
   ];
 
   const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
