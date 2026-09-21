@@ -826,7 +826,7 @@ ipcMain.handle('get-external-issue-labels', async (event, provider = 'all') => {
 });
 
 ipcMain.handle('save-external-issue-status', async (event, issue) => {
-  if (!issue || !['github', 'gitlab'].includes(issue.provider) || !issue.project || !issue.id || !['pending', 'in_progress', 'blocked', 'testing', 'completed'].includes(issue.status)) {
+  if (!issue || !['github', 'gitlab'].includes(issue.provider) || !issue.project || !issue.id || !['pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed'].includes(issue.status)) {
     throw new Error('Estado de issue no válido.');
   }
   return db.saveExternalIssueStatus(issue);
@@ -834,7 +834,7 @@ ipcMain.handle('save-external-issue-status', async (event, issue) => {
 
 ipcMain.handle('get-external-issue-label-rules', async () => db.getExternalIssueLabelRules());
 ipcMain.handle('save-external-issue-label-rule', async (event, rule) => {
-  if (!rule || !['github', 'gitlab'].includes(rule.provider) || !rule.label?.trim() || !['pending', 'in_progress', 'blocked', 'testing', 'completed'].includes(rule.status)) {
+  if (!rule || !['github', 'gitlab'].includes(rule.provider) || !rule.label?.trim() || !['pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed'].includes(rule.status)) {
     throw new Error('Regla de etiqueta no válida.');
   }
   return db.saveExternalIssueLabelRule({ ...rule, label: rule.label.trim() });
@@ -1594,6 +1594,7 @@ const SVG_STATUS_CONFIG = {
   pending: { label: 'Pendiente', color: '#64748b', bg: '#f1f5f9' },
   in_progress: { label: 'En Curso', color: '#2563eb', bg: '#dbeafe' },
   blocked: { label: 'Bloqueado', color: '#dc2626', bg: '#fee2e2' },
+  pending_deployment: { label: 'Pend. Despliegue', color: '#0891b2', bg: '#cffafe' },
   testing: { label: 'Testing', color: '#d97706', bg: '#fef3c7' },
   completed: { label: 'Completada', color: '#16a34a', bg: '#dcfce7' }
 };
@@ -1714,6 +1715,7 @@ function generateIssuesKanbanSvg(issues, options = {}) {
     { id: 'pending', label: 'Pendiente', color: '#64748b', bg: '#f1f5f9' },
     { id: 'in_progress', label: 'En Curso', color: '#2563eb', bg: '#dbeafe' },
     { id: 'blocked', label: 'Bloqueado', color: '#dc2626', bg: '#fee2e2' },
+    { id: 'pending_deployment', label: 'Pendiente despliegue', color: '#0891b2', bg: '#cffafe' },
     { id: 'testing', label: 'Testing', color: '#d97706', bg: '#fef3c7' },
     { id: 'completed', label: 'Completada', color: '#16a34a', bg: '#dcfce7' }
   ];
@@ -1849,6 +1851,7 @@ ipcMain.handle('export-issues', async (event, { format, issues, options = {} }) 
       pending: 'Pendiente',
       in_progress: 'En Curso',
       blocked: 'Bloqueado',
+      pending_deployment: 'Pendiente despliegue',
       testing: 'Testing',
       completed: 'Completada'
     };

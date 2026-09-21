@@ -777,7 +777,7 @@ textarea.form-control.auto-resize {
 .issues-table .issue-labels { margin: 0; min-width: 120px; }
 .issue-status-select { min-width: 125px; font-size: 0.75rem; }
 
-.issues-kanban { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 1rem; overflow-x: auto; padding-bottom: 0.25rem; }
+.issues-kanban { display: grid; grid-template-columns: repeat(6, minmax(220px, 1fr)); gap: 1rem; overflow-x: auto; padding-bottom: 0.25rem; }
 .issue-kanban-column { min-width: 220px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 0.5rem; }
 .issue-kanban-column > header { display: flex; justify-content: space-between; align-items: center; padding: 0.8rem; border-bottom: 1px solid var(--border-color); }
 .issue-kanban-column > header > div { display: flex; align-items: center; gap: 0.45rem; }

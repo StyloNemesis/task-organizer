@@ -156,7 +156,7 @@ class TaskDatabase {
         provider TEXT NOT NULL,
         project TEXT NOT NULL,
         issue_id TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'blocked', 'testing', 'completed')),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed')),
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (provider, project, issue_id)
       )
@@ -167,11 +167,68 @@ class TaskDatabase {
       CREATE TABLE IF NOT EXISTS external_issue_label_rules (
         provider TEXT NOT NULL CHECK(provider IN ('github', 'gitlab')),
         label TEXT NOT NULL,
-        status TEXT NOT NULL CHECK(status IN ('pending', 'in_progress', 'blocked', 'testing', 'completed')),
+        status TEXT NOT NULL CHECK(status IN ('pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (provider, label)
       )
     `);
+
+    // Migración: actualizar CHECK constraint de external_issue_statuses para incluir 'pending_deployment'
+    try {
+      const statusTableInfo = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='external_issue_statuses'").get();
+      if (statusTableInfo && !statusTableInfo.sql.includes("'pending_deployment'")) {
+        const migrateStatuses = this.db.transaction(() => {
+          this.db.exec(`
+            CREATE TABLE external_issue_statuses_v2 (
+              provider TEXT NOT NULL,
+              project TEXT NOT NULL,
+              issue_id TEXT NOT NULL,
+              status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed')),
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (provider, project, issue_id)
+            )
+          `);
+          this.db.exec(`
+            INSERT INTO external_issue_statuses_v2 (provider, project, issue_id, status, updated_at)
+            SELECT provider, project, issue_id, status, updated_at
+            FROM external_issue_statuses
+          `);
+          this.db.exec(`DROP TABLE external_issue_statuses`);
+          this.db.exec(`ALTER TABLE external_issue_statuses_v2 RENAME TO external_issue_statuses`);
+        });
+        migrateStatuses();
+      }
+    } catch (e) {
+      console.error('Error en migración de external_issue_statuses:', e);
+    }
+
+    // Migración: actualizar CHECK constraint de external_issue_label_rules para incluir 'pending_deployment'
+    try {
+      const rulesTableInfo = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='external_issue_label_rules'").get();
+      if (rulesTableInfo && !rulesTableInfo.sql.includes("'pending_deployment'")) {
+        const migrateRules = this.db.transaction(() => {
+          this.db.exec(`
+            CREATE TABLE external_issue_label_rules_v2 (
+              provider TEXT NOT NULL CHECK(provider IN ('github', 'gitlab')),
+              label TEXT NOT NULL,
+              status TEXT NOT NULL CHECK(status IN ('pending', 'in_progress', 'blocked', 'pending_deployment', 'testing', 'completed')),
+              created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+              PRIMARY KEY (provider, label)
+            )
+          `);
+          this.db.exec(`
+            INSERT INTO external_issue_label_rules_v2 (provider, label, status, created_at)
+            SELECT provider, label, status, created_at
+            FROM external_issue_label_rules
+          `);
+          this.db.exec(`DROP TABLE external_issue_label_rules`);
+          this.db.exec(`ALTER TABLE external_issue_label_rules_v2 RENAME TO external_issue_label_rules`);
+        });
+        migrateRules();
+      }
+    } catch (e) {
+      console.error('Error en migración de external_issue_label_rules:', e);
+    }
   }
 
   // ========== PROYECTOS ==========
