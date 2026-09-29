@@ -49,6 +49,23 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('pull-requests-updated', listener);
   },
 
+  // Despliegues y comparación de carpetas
+  getDeployments: () => ipcRenderer.invoke('get-deployments'),
+  getDeployment: (id) => ipcRenderer.invoke('get-deployment', id),
+  createDeployment: (deployment) => ipcRenderer.invoke('create-deployment', deployment),
+  updateDeployment: (id, deployment) => ipcRenderer.invoke('update-deployment', id, deployment),
+  deleteDeployment: (id) => ipcRenderer.invoke('delete-deployment', id),
+  selectDirectory: (defaultPath) => ipcRenderer.invoke('select-directory', defaultPath),
+  compareDeploymentFolders: (payload) => ipcRenderer.invoke('compare-deployment-folders', payload),
+  getFileDiff: (payload) => ipcRenderer.invoke('get-file-diff', payload),
+  syncDeploymentFile: (payload) => ipcRenderer.invoke('sync-deployment-file', payload),
+  syncAllDeploymentFiles: (payload) => ipcRenderer.invoke('sync-all-deployment-files', payload),
+  saveCustomDeploymentFile: (payload) => ipcRenderer.invoke('save-custom-deployment-file', payload),
+  getFileRawContents: (payload) => ipcRenderer.invoke('get-file-raw-contents', payload),
+  getGitRepoInfo: (folderPath) => ipcRenderer.invoke('get-git-repo-info', folderPath),
+  gitCheckoutBranch: (payload) => ipcRenderer.invoke('git-checkout-branch', payload),
+  gitPull: (payload) => ipcRenderer.invoke('git-pull', payload),
+
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),
