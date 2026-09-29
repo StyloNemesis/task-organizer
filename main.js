@@ -5,6 +5,7 @@ const zlib = require('zlib');
 const https = require('https');
 const http = require('http');
 const Database = require('./src/database/db');
+const deploymentUtils = require('./src/utils/deployment-utils');
 
 // Permitir certificados internos o corporativos para instancias privadas de GitLab
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
@@ -249,6 +250,111 @@ ipcMain.handle('open-external', async (event, url) => {
 ipcMain.handle('copy-to-clipboard', async (event, text) => {
   clipboard.writeText(String(text || ''));
   return true;
+});
+
+// ========== IPC HANDLERS PARA DESPLIEGUES ==========
+ipcMain.handle('get-deployments', async () => {
+  return db.getDeployments();
+});
+
+ipcMain.handle('get-deployment', async (event, id) => {
+  return db.getDeployment(id);
+});
+
+ipcMain.handle('create-deployment', async (event, deployment) => {
+  return db.createDeployment(deployment);
+});
+
+ipcMain.handle('update-deployment', async (event, id, deployment) => {
+  return db.updateDeployment(id, deployment);
+});
+
+ipcMain.handle('delete-deployment', async (event, id) => {
+  return db.deleteDeployment(id);
+});
+
+ipcMain.handle('select-directory', async (event, defaultPath) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Seleccionar carpeta',
+    properties: ['openDirectory', 'createDirectory'],
+    defaultPath: defaultPath && fs.existsSync(defaultPath) ? defaultPath : undefined
+  });
+  if (result.canceled || !result.filePaths.length) {
+    return null;
+  }
+  return result.filePaths[0];
+});
+
+ipcMain.handle('compare-deployment-folders', async (event, { sourcePath, targetPath, ignorePatterns }) => {
+  try {
+    return await deploymentUtils.compareDeploymentFolders(sourcePath, targetPath, ignorePatterns);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-file-diff', async (event, { sourcePath, targetPath, relativePath, options }) => {
+  try {
+    return await deploymentUtils.getFileDiff(sourcePath, targetPath, relativePath, options);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('sync-deployment-file', async (event, { sourcePath, targetPath, relativePath, action }) => {
+  try {
+    return await deploymentUtils.syncDeploymentFile(sourcePath, targetPath, relativePath, action);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('sync-all-deployment-files', async (event, { sourcePath, targetPath, files }) => {
+  try {
+    return await deploymentUtils.syncAllDeploymentFiles(sourcePath, targetPath, files);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('save-custom-deployment-file', async (event, { targetPath, relativePath, content }) => {
+  try {
+    return await deploymentUtils.saveCustomDeploymentFile(targetPath, relativePath, content);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-file-raw-contents', async (event, { sourcePath, targetPath, relativePath }) => {
+  try {
+    return await deploymentUtils.getFileRawContents(sourcePath, targetPath, relativePath);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-git-repo-info', async (event, folderPath) => {
+  try {
+    return await deploymentUtils.getGitRepoInfo(folderPath);
+  } catch (err) {
+    return { isGit: false, error: err.message };
+  }
+});
+
+ipcMain.handle('git-checkout-branch', async (event, { folderPath, branch }) => {
+  try {
+    return await deploymentUtils.gitCheckoutBranch(folderPath, branch);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('git-pull', async (event, { folderPath, branch }) => {
+  try {
+    return await deploymentUtils.gitPull(folderPath, branch);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 function encryptToken(token) {

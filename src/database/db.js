@@ -229,6 +229,26 @@ class TaskDatabase {
     } catch (e) {
       console.error('Error en migración de external_issue_label_rules:', e);
     }
+
+    // Tabla de despliegues (entornos y comparación de carpetas)
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS deployments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        target_path TEXT NOT NULL,
+        ignore_patterns TEXT DEFAULT '.git,.github,node_modules,dist,build,target,.DS_Store',
+        tags TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    try {
+      this.db.exec("ALTER TABLE deployments ADD COLUMN tags TEXT");
+    } catch (e) {
+      // Ignore if already exists
+    }
   }
 
   // ========== PROYECTOS ==========
@@ -460,6 +480,67 @@ class TaskDatabase {
 
   deleteExternalIssueLabelRule(provider, label) {
     this.db.prepare('DELETE FROM external_issue_label_rules WHERE provider = ? AND label = ?').run(provider, label);
+    return { success: true };
+  }
+
+  // ========== DESPLIEGUES (COMPARADOR Y ENSTORNOS) ==========
+  getDeployments() {
+    const deps = this.db.prepare('SELECT * FROM deployments ORDER BY updated_at DESC, name ASC').all();
+    deps.forEach(d => {
+      d.tags = d.tags ? JSON.parse(d.tags) : [];
+    });
+    return deps;
+  }
+
+  getDeployment(id) {
+    const d = this.db.prepare('SELECT * FROM deployments WHERE id = ?').get(id);
+    if (d) {
+      d.tags = d.tags ? JSON.parse(d.tags) : [];
+    }
+    return d;
+  }
+
+  createDeployment(deployment) {
+    const stmt = this.db.prepare(`
+      INSERT INTO deployments (name, source_path, target_path, ignore_patterns, tags, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `);
+    const tagsStr = deployment.tags ? JSON.stringify(deployment.tags) : null;
+    const info = stmt.run(
+      deployment.name,
+      deployment.source_path,
+      deployment.target_path,
+      deployment.ignore_patterns || '.git,.github,node_modules,dist,build,target,.DS_Store',
+      tagsStr
+    );
+    return {
+      id: info.lastInsertRowid,
+      ...deployment,
+      ignore_patterns: deployment.ignore_patterns || '.git,.github,node_modules,dist,build,target,.DS_Store'
+    };
+  }
+
+  updateDeployment(id, deployment) {
+    const stmt = this.db.prepare(`
+      UPDATE deployments
+      SET name = ?, source_path = ?, target_path = ?, ignore_patterns = ?, tags = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    const tagsStr = deployment.tags ? JSON.stringify(deployment.tags) : null;
+    stmt.run(
+      deployment.name,
+      deployment.source_path,
+      deployment.target_path,
+      deployment.ignore_patterns || '.git,.github,node_modules,dist,build,target,.DS_Store',
+      tagsStr,
+      id
+    );
+    return { id, ...deployment };
+  }
+
+  deleteDeployment(id) {
+    const stmt = this.db.prepare('DELETE FROM deployments WHERE id = ?');
+    stmt.run(id);
     return { success: true };
   }
 }

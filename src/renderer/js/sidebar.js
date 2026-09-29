@@ -37,6 +37,10 @@
           <span class="icon">${ICONS.gitPullRequest}</span>
           PRs / MRs
         </a>
+        <a href="deployments.html" class="nav-link ${currentPage === 'deployments.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.rocket}</span>
+          Despliegues
+        </a>
       </nav>
 
       <div class="sidebar-footer" id="sidebarFooter">

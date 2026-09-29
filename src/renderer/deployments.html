@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Despliegues y Comparador - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('app-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+      <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+      <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar se carga automáticamente desde sidebar.js -->
+
+    <main class="main-content deployments-main">
+      <!-- Cabecera para la Vista de Listado de Despliegues -->
+      <header id="deploymentsListHeader" class="content-header deployments-header">
+        <div>
+          <h2>Despliegues</h2>
+          <p class="header-subtitle">Configura y gestiona tus entornos para comparar carpetas, revisar diferencias y desplegar cambios.</p>
+        </div>
+        <div class="header-actions">
+          <button id="newDeploymentBtn" class="btn btn-primary">
+            + Nuevo Despliegue
+          </button>
+        </div>
+      </header>
+
+      <!-- Cabecera para la Vista de Detalle del Despliegue Activo -->
+      <header id="deploymentDetailHeader" class="content-header deployments-header" style="display: none;">
+        <div class="header-left-group">
+          <button id="backToListBtn" class="btn btn-secondary btn-sm back-to-list-btn" title="Volver al listado de despliegues">
+            &#8592; Volver al listado
+          </button>
+          <div class="header-detail-titles">
+            <div class="detail-title-line">
+              <h2 id="activeDeploymentTitle">Despliegue</h2>
+              <span id="activeDeploymentTag" class="badge badge-primary">Activo</span>
+            </div>
+            <p class="header-subtitle" id="activeDeploymentSubtitle">Comparando carpetas de Entrada y Salida</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <div class="deployment-selector-wrapper">
+            <label for="deploymentSelect" class="sr-only">Cambiar despliegue</label>
+            <select id="deploymentSelect" class="form-control deployment-select" title="Cambiar a otro despliegue">
+              <option value="">-- Cambiar despliegue --</option>
+            </select>
+          </div>
+          <button id="refreshBtn" class="btn btn-secondary" title="Recargar comparación y estado Git">
+            <span class="btn-icon" id="refreshIcon"></span>
+            Actualizar
+          </button>
+          <button id="editDeploymentBtn" class="btn btn-secondary" title="Editar configuración del despliegue actual">
+            <span class="btn-icon" id="editIcon"></span>
+            Editar
+          </button>
+          <button id="deleteDeploymentBtn" class="btn btn-danger-outline" title="Eliminar despliegue">
+            <span class="btn-icon" id="deleteIcon"></span>
+            Eliminar
+          </button>
+        </div>
+      </header>
+
+      <div class="content-body deployments-body">
+        <!-- Notificación flotante de feedback / resultados -->
+        <div id="deploymentAlert" class="deployment-alert" style="display: none;"></div>
+
+        <!-- Estado vacío cuando no hay despliegues en la base de datos -->
+        <div id="noDeploymentsView" class="deployments-empty-state" style="display: none;">
+          <div class="empty-icon" id="emptyStateIcon"></div>
+          <h3>No tienes despliegues configurados</h3>
+          <p>Configura un despliegue indicando un nombre, la carpeta de entrada (origen) y la carpeta de salida (destino) para comenzar a ver los cambios de ficheros estilo git diff.</p>
+          <button id="createFirstDeploymentBtn" class="btn btn-primary btn-lg">+ Crear Primer Despliegue</button>
+        </div>
+
+        <!-- VISTA LISTADO: Listado de Despliegues -->
+        <div id="deploymentsListView" class="deployments-list-layout" style="display: none;">
+          <div class="deployments-list-toolbar">
+            <div class="filters-group" style="display: flex; gap: 10px; align-items: center; flex: 1; max-width: 600px;">
+              <div class="custom-multi-select" style="position: relative; flex-shrink: 0;">
+                <button type="button" id="tagFilterDropdownBtn" class="form-control" style="min-width: 180px; text-align: left; display: flex; justify-content: space-between; align-items: center; padding-right: 12px;">
+                  <span id="tagFilterDropdownText">Todas las etiquetas</span>
+                  <span style="font-size: 0.8em; opacity: 0.6;">▼</span>
+                </button>
+                <div id="tagFilterDropdownList" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); z-index: 100; max-height: 250px; overflow-y: auto; min-width: 100%; padding: 8px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                  <!-- checkboxes renderizados dinámicamente -->
+                </div>
+              </div>
+              <div class="search-box" style="flex: 1; max-width: none; min-width: 0; margin: 0;">
+                <input type="search" id="deploymentSearchInput" class="form-control" placeholder="Buscar despliegue por nombre o carpeta…">
+              </div>
+            </div>
+            <div class="list-stats">
+              <span id="deploymentsCountBadge" class="badge badge-secondary">0 despliegues</span>
+            </div>
+          </div>
+
+          <div id="deploymentsGrid" class="deployments-grid">
+            <!-- Se puebla dinámicamente con tarjetas de despliegues -->
+          </div>
+        </div>
+
+        <!-- Vista principal del despliegue activo -->
+        <div id="activeDeploymentView" style="display: none;" class="active-deployment-layout">
+          <!-- Tarjetas informativas de los dos entornos (Entrada vs Salida) con soporte Git -->
+          <section class="environments-grid">
+            <!-- Entorno Entrada (Origen) -->
+            <div class="env-card env-card--source">
+              <div class="env-card-header">
+                <div class="env-tag env-tag--source">Entrada / Origen</div>
+                <h4 id="sourceEnvTitle" class="env-title">Carpeta de Entrada</h4>
+                <button id="openSourceFolderBtn" class="btn-icon-subtle" title="Abrir carpeta en el gestor de archivos">
+                  <span id="openSourceIcon"></span>
+                </button>
+              </div>
+              <div class="env-path-box">
+                <code id="sourcePathDisplay" class="env-path">...</code>
+              </div>
+              <div id="sourceGitBox" class="env-git-box">
+                <div class="git-status-line">
+                  <span class="git-badge" id="sourceGitBadge">Comprobando Git...</span>
+                  <span class="git-commit-info" id="sourceGitCommit"></span>
+                </div>
+                <div class="git-actions-row" id="sourceGitActions" style="display: none;">
+                  <div class="git-branch-control">
+                    <span class="git-branch-icon" id="sourceBranchIcon"></span>
+                    <select id="sourceBranchSelect" class="form-control form-control-sm branch-select" title="Seleccionar rama"></select>
+                  </div>
+                  <button id="sourcePullBtn" class="btn btn-sm btn-secondary pull-btn" title="Hacer Git Pull en esta carpeta">
+                    <span class="btn-icon" id="sourcePullIcon"></span>
+                    Git Pull
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Divisor / Dirección de despliegue -->
+            <div class="env-divider">
+              <div class="env-arrow" title="Flujo de despliegue: Entrada hacia Salida">&#10142;</div>
+              <div class="env-arrow-label">Despliegue</div>
+            </div>
+
+            <!-- Entorno Salida (Destino) -->
+            <div class="env-card env-card--target">
+              <div class="env-card-header">
+                <div class="env-tag env-tag--target">Salida / Destino</div>
+                <h4 id="targetEnvTitle" class="env-title">Carpeta de Salida</h4>
+                <button id="openTargetFolderBtn" class="btn-icon-subtle" title="Abrir carpeta en el gestor de archivos">
+                  <span id="openTargetIcon"></span>
+                </button>
+              </div>
+              <div class="env-path-box">
+                <code id="targetPathDisplay" class="env-path">...</code>
+              </div>
+              <div id="targetGitBox" class="env-git-box">
+                <div class="git-status-line">
+                  <span class="git-badge" id="targetGitBadge">Comprobando Git...</span>
+                  <span class="git-commit-info" id="targetGitCommit"></span>
+                </div>
+                <div class="git-actions-row" id="targetGitActions" style="display: none;">
+                  <div class="git-branch-control">
+                    <span class="git-branch-icon" id="targetBranchIcon"></span>
+                    <select id="targetBranchSelect" class="form-control form-control-sm branch-select" title="Seleccionar rama"></select>
+                  </div>
+                  <button id="targetPullBtn" class="btn btn-sm btn-secondary pull-btn" title="Hacer Git Pull en esta carpeta">
+                    <span class="btn-icon" id="targetPullIcon"></span>
+                    Git Pull
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Barra de estadísticas, filtros y acciones globales -->
+          <div class="diff-toolbar">
+            <div class="diff-filter-tabs" role="tablist">
+              <button class="diff-tab-btn active" data-filter="all" type="button">
+                <span>Todos los cambios</span>
+                <span class="badge" id="badgeAll">0</span>
+              </button>
+              <button class="diff-tab-btn" data-filter="modified" type="button">
+                <span class="status-indicator status-indicator--modified"></span>
+                <span>Modificados</span>
+                <span class="badge badge--modified" id="badgeModified">0</span>
+              </button>
+              <button class="diff-tab-btn" data-filter="added" type="button">
+                <span class="status-indicator status-indicator--added"></span>
+                <span>Nuevos en Entrada</span>
+                <span class="badge badge--added" id="badgeAdded">0</span>
+              </button>
+              <button class="diff-tab-btn" data-filter="deleted" type="button">
+                <span class="status-indicator status-indicator--deleted"></span>
+                <span>Solo en Salida</span>
+                <span class="badge badge--deleted" id="badgeDeleted">0</span>
+              </button>
+            </div>
+
+            <div class="diff-toolbar-actions">
+              <div class="search-box">
+                <input type="search" id="fileSearchInput" class="form-control form-control-sm" placeholder="Buscar fichero por nombre o ruta…">
+              </div>
+              <button id="syncAllBtn" class="btn btn-sm btn-success" title="Copiar todos los ficheros modificados y añadidos hacia la carpeta de salida" disabled>
+                <span class="btn-icon" id="syncAllIcon"></span>
+                Desplegar todos a Salida
+              </button>
+            </div>
+          </div>
+
+          <!-- Master-Detail: Lista de ficheros a la izquierda, visor de diferencias a la derecha -->
+          <div class="diff-split-container">
+            <!-- Panel izquierdo: Listado de ficheros (Staging) -->
+            <aside class="diff-files-sidebar diff-files-sidebar--staging">
+              <div id="diffLoadingFiles" class="diff-loading" style="display: none;">
+                <div class="spinner"></div>
+                <span>Comparando carpetas...</span>
+              </div>
+              
+              <!-- Unstaged Changes -->
+              <div class="staging-panel staging-panel--unstaged">
+                <div class="staging-header">
+                  <span>Unstaged Changes (<span id="unstagedCount">0</span>)</span>
+                  <button id="stageAllBtn" class="btn-text-small">Stage All</button>
+                </div>
+                <div id="unstagedFileList" class="diff-file-list diff-file-list--staging" role="list"></div>
+              </div>
+
+              <!-- Staged Changes -->
+              <div class="staging-panel staging-panel--staged">
+                <div class="staging-header">
+                  <span>Staged Changes (<span id="stagedCount">0</span>)</span>
+                  <button id="unstageAllBtn" class="btn-text-small">Unstage All</button>
+                </div>
+                <div id="stagedFileList" class="diff-file-list diff-file-list--staging" role="list"></div>
+              </div>
+
+              <!-- Commit Panel -->
+              <div class="staging-commit-panel">
+                <button id="commitDeployBtn" class="btn-primary btn-commit" disabled>Desplegar Cambios</button>
+              </div>
+            </aside>
+
+            <!-- Panel derecho: Visor de diff (unificado o lado a lado) -->
+            <section class="diff-viewer-panel">
+              <div id="diffEmptySelection" class="diff-viewer-empty">
+                <div class="empty-icon" id="diffEmptyIcon"></div>
+                <h4>Selecciona un fichero para ver las diferencias</h4>
+                <p>Haz clic en cualquier archivo de la lista de la izquierda para inspeccionar sus cambios estilo Git Diff.</p>
+              </div>
+
+              <div id="diffViewerContent" class="diff-viewer-content" style="display: none;">
+                <!-- Header del visor de fichero actual -->
+                <div class="diff-file-header">
+                  <div class="diff-file-meta">
+                    <span id="activeFileStatusBadge" class="file-status-badge">M</span>
+                    <span id="activeFilePath" class="active-file-path">ruta/al/fichero.js</span>
+                    <span id="activeFileStats" class="diff-stat-pills">
+                      <span class="pill-add" id="statAdditions">+0</span>
+                      <span class="pill-del" id="statDeletions">-0</span>
+                    </span>
+                    <span id="saveStatusIndicator" class="save-status-pill save-status-pill--synced">● Guardado en Salida</span>
+                  </div>
+                  <div class="diff-file-actions">
+                    <div class="btn-group">
+                      <button id="viewSplitEditorBtn" class="btn btn-sm btn-secondary active" type="button" title="Editor doble: Entrada y Salida lado a lado">Editor Doble</button>
+                      <button id="viewUnifiedDiffBtn" class="btn btn-sm btn-secondary" type="button" title="Ver diff unificado tradicional">Diff Clásico</button>
+                    </div>
+                    <button id="passAllBtn" class="btn btn-sm btn-secondary" type="button" title="Copiar todo el contenido de Entrada en el editor de Salida">
+                      ➔ Copiar Todo a Salida
+                    </button>
+                    <button id="revertBtn" class="btn btn-sm btn-secondary" type="button" title="Descartar ediciones y volver al fichero original de Salida">
+                      ⎌ Revertir Cambios
+                    </button>
+                    <button id="saveToTargetBtn" class="btn btn-sm btn-success main-save-btn" type="button" title="Confirmar y escribir este fichero en la carpeta de Salida en disco">
+                      💾 Guardar en Salida (OK)
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Banner explicativo claro -->
+                <div class="editor-info-banner">
+                  <span class="info-icon">💡</span>
+                  <div class="editor-info-text">
+                    <strong>¿Cómo preparar y guardar cambios?</strong><br>
+                    1. <strong>A la izquierda (Entrada):</strong> Es lo que viene de Dev. Pulsa <strong>[➔ Pasar]</strong> en las líneas verdes que quieras transferir.<br>
+                    2. <strong>A la derecha (Salida):</strong> Es el editor final. <em>Haz clic dentro y edita lo que necesites</em> (ej. cambiar versión <code>"1.0.0"</code> a <code>"1.2.0"</code>).<br>
+                    3. <strong>Guardar en disco:</strong> Nada se escribirá en tu carpeta de Salida hasta que pulses el botón verde <strong>[💾 Guardar en Salida (OK)]</strong> de arriba.
+                  </div>
+                </div>
+
+                <!-- Indicador de carga -->
+                <div id="diffLoadingContent" class="diff-loading" style="display: none;">
+                  <div class="spinner"></div>
+                  <span>Cargando fichero y diferencias...</span>
+                </div>
+
+                <!-- Aviso para archivos binarios -->
+                <div id="diffBinaryNotice" class="diff-binary-notice" style="display: none;">
+                  <div class="binary-icon">&#9881;</div>
+                  <h4>Archivo binario</h4>
+                  <p id="binaryDetails">El archivo es binario y no puede editarse como texto.</p>
+                  <div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+                    <div class="img-preview-box">
+                      <h5>Entrada (Nuevo)</h5>
+                      <img id="imgSourcePreview" alt="Entrada">
+                    </div>
+                    <div class="img-preview-box">
+                      <h5>Salida (Actual)</h5>
+                      <img id="imgTargetPreview" alt="Salida">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VISTA 1: Editor Doble (Entrada a la izquierda, Salida editable a la derecha) -->
+                <div id="splitEditorView" class="split-editor-container">
+                  <!-- Panel Izquierdo: Entrada (Origen / Dev) -->
+                  <div class="panel-column panel-column--source">
+                    <div class="panel-column-header">
+                      <div class="panel-header-title">
+                        <span>📥 ENTRADA (Dev / Origen)</span>
+                        <span class="panel-header-tag">Solo lectura</span>
+                      </div>
+                      <span class="panel-header-subtitle">Pulsa <strong>[➔ Pasar]</strong> en las líneas que quieras transferir:</span>
+                    </div>
+                    <div id="sourceCodeView" class="source-code-view">
+                      <!-- Líneas de entrada renderizadas con botones [➔ Pasar] -->
+                    </div>
+                  </div>
+
+                  <!-- Panel Derecho: Salida (Destino / Editable) -->
+                  <div class="panel-column panel-column--target">
+                    <div class="panel-column-header">
+                      <div class="panel-header-title">
+                        <span>📤 STAGED (Preparado / Modificable)</span>
+                        <span class="panel-header-tag panel-header-tag--editable">✏️ Editable</span>
+                      </div>
+                      <span class="panel-header-subtitle">Escribe o edita cualquier línea aquí antes de guardar:</span>
+                    </div>
+                    <div class="target-editor-box">
+                      <div id="editorGutter" class="editor-gutter">1</div>
+                      <textarea id="targetEditorTextarea" class="target-editor-textarea" spellcheck="false" placeholder="Archivo de Salida (vacío o nuevo). Escribe aquí o pulsa [➔ Pasar] para copiar líneas..."></textarea>
+                    </div>
+                    <div class="target-editor-footer">
+                      <span id="targetEditorStats">Líneas: 0 | Caracteres: 0</span>
+                      <span class="target-editor-reminder">⚠️ Pulsa "💾 Guardar en Salida" arriba para aplicar a disco</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VISTA 2: Diff Clásico Unificado -->
+                <div id="unifiedDiffContainer" class="diff-code-wrapper" style="display: none;">
+                  <!-- Se renderiza tabla de diff unificado tradicional -->
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Crear / Editar Despliegue -->
+  <div id="deploymentModal" class="modal">
+    <div class="modal-content modal-content--deployment">
+      <div class="modal-header">
+        <h3 id="deploymentModalTitle">Nuevo Despliegue</h3>
+        <button type="button" class="modal-close" id="closeDeploymentModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="deploymentForm">
+          <input type="hidden" id="deploymentId">
+
+          <div class="form-group">
+            <label for="deploymentName">Nombre del despliegue <span class="required">*</span></label>
+            <input type="text" id="deploymentName" class="form-control" placeholder="Ej: Frontend Preproducción, Microservicio API, etc." required>
+          </div>
+
+          <div class="form-group">
+            <label for="deploymentSourcePath">Carpeta de Entrada (Origen) <span class="required">*</span></label>
+            <div class="input-with-button">
+              <input type="text" id="deploymentSourcePath" class="form-control" placeholder="/ruta/hacia/carpeta-origen-o-repo" required>
+              <button type="button" id="browseSourceBtn" class="btn btn-secondary">Examinar…</button>
+            </div>
+            <small class="form-text">Directorio que contiene los ficheros nuevos o modificados listos para desplegar.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="deploymentTargetPath">Carpeta de Salida (Destino) <span class="required">*</span></label>
+            <div class="input-with-button">
+              <input type="text" id="deploymentTargetPath" class="form-control" placeholder="/ruta/hacia/carpeta-destino-o-entorno" required>
+              <button type="button" id="browseTargetBtn" class="btn btn-secondary">Examinar…</button>
+            </div>
+            <small class="form-text">Directorio del entorno de destino sobre el que se comparará y aplicarán los cambios.</small>
+          </div>
+
+          <div class="form-group">
+            <label>Etiquetas (Tags)</label>
+            <div class="tags-input-container form-control" style="height: auto; min-height: 38px; display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 8px; align-items: center; cursor: text;" onclick="document.getElementById('deploymentTagsInput').focus()">
+              <div id="deploymentTagsWrapper" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+              <input type="text" id="deploymentTagsInput" style="border: none; outline: none; background: transparent; color: inherit; flex: 1; min-width: 120px;" placeholder="Añadir etiqueta..." list="existingTagsDatalist">
+            </div>
+            <datalist id="existingTagsDatalist"></datalist>
+            <small class="form-text">Escribe y pulsa Enter para añadir la etiqueta.</small>
+          </div>
+          <div class="form-group">
+            <label for="deploymentIgnorePatterns">Patrones a ignorar (separados por coma)</label>
+            <input type="text" id="deploymentIgnorePatterns" class="form-control" value=".git,.github,node_modules,dist,build,target,.DS_Store">
+            <small class="form-text">Carpetas o extensiones que no se incluirán en la comparación.</small>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="cancelDeploymentBtn">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="saveDeploymentBtn">Guardar Despliegue</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Confirmación de Despliegue / Sincronización en Lote -->
+  <div id="confirmSyncModal" class="modal">
+    <div class="modal-content modal-content--sm">
+      <div class="modal-header">
+        <h3>Confirmar Despliegue a Salida (Dar el OK)</h3>
+        <button type="button" class="modal-close" id="closeConfirmSyncModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Revisa la lista de ficheros que se van a pasar. <strong>Ningún archivo se modificará en la carpeta de salida hasta que des el OK:</strong></p>
+        <div class="sync-summary-box">
+          <p><strong>Ficheros a sincronizar:</strong> <span id="confirmSyncCount">0</span></p>
+          <ul id="confirmSyncList" class="sync-preview-list"></ul>
+        </div>
+        <p class="text-warning-sm">⚠️ Los archivos seleccionados en la carpeta de salida serán reemplazados con los de entrada.</p>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="cancelSyncBtn">Cancelar</button>
+          <button type="button" class="btn btn-success" id="executeSyncBtn">✓ Dar OK y Desplegar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/icons.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/external-links.js"></script>
+  <script src="js/deployments.js"></script>
+</body>
+</html>
