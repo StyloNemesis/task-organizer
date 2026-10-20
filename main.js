@@ -252,6 +252,88 @@ ipcMain.handle('copy-to-clipboard', async (event, text) => {
   return true;
 });
 
+// ========== IPC HANDLERS PARA IMPUTACIONES Y CÓDIGOS ==========
+ipcMain.handle('get-imputation-codes', async (event, projectId) => {
+  return db.getImputationCodes(projectId);
+});
+
+ipcMain.handle('create-imputation-code', async (event, codeData) => {
+  return db.createImputationCode(codeData);
+});
+
+ipcMain.handle('update-imputation-code', async (event, id, codeData) => {
+  return db.updateImputationCode(id, codeData);
+});
+
+ipcMain.handle('delete-imputation-code', async (event, id) => {
+  return db.deleteImputationCode(id);
+});
+
+ipcMain.handle('get-imputations', async (event, startDate, endDate) => {
+  return db.getImputations(startDate, endDate);
+});
+
+ipcMain.handle('get-month-imputations', async (event, year, month) => {
+  return db.getImputationsByMonth(year, month);
+});
+
+ipcMain.handle('save-imputation', async (event, imputation) => {
+  return db.saveImputation(imputation);
+});
+
+ipcMain.handle('batch-save-day-imputations', async (event, date, entries) => {
+  return db.batchSaveDayImputations(date, entries);
+});
+
+ipcMain.handle('delete-day-imputations', async (event, date) => {
+  return db.deleteDayImputations(date);
+});
+
+ipcMain.handle('get-code-allocations', async (event, period, projectId) => {
+  return db.getCodeAllocations(period, projectId);
+});
+
+ipcMain.handle('save-code-allocation', async (event, allocation) => {
+  return db.saveCodeAllocation(allocation);
+});
+
+ipcMain.handle('batch-save-code-allocations', async (event, period, allocations) => {
+  return db.batchSaveCodeAllocations(period, allocations);
+});
+
+// Handlers para festivos y vacaciones
+ipcMain.handle('get-holidays', async (event, year) => {
+  return db.getHolidays(year);
+});
+
+ipcMain.handle('set-holiday', async (event, date, name) => {
+  return db.setHoliday(date, name);
+});
+
+ipcMain.handle('remove-holiday', async (event, date) => {
+  return db.removeHoliday(date);
+});
+
+ipcMain.handle('get-annual-leave-balance', async (event, year) => {
+  return db.getAnnualLeaveBalance(year);
+});
+
+ipcMain.handle('save-annual-leave-quota', async (event, quota) => {
+  return db.saveAnnualLeaveQuota(quota);
+});
+
+ipcMain.handle('auto-adjust-to-calendar', async (event, payload) => {
+  return db.autoAdjustToCalendar(payload);
+});
+
+ipcMain.handle('clear-project-month-imputations', async (event, projectId, period) => {
+  return db.clearProjectMonthImputations(projectId, period);
+});
+
+ipcMain.handle('fill-month-remaining-gaps', async (event, payload) => {
+  return db.fillMonthRemainingGaps(payload);
+});
+
 // ========== IPC HANDLERS PARA DESPLIEGUES ==========
 ipcMain.handle('get-deployments', async () => {
   return db.getDeployments();

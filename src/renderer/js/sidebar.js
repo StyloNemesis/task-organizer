@@ -24,6 +24,10 @@
           Calendario
           <span class="nav-badge" id="sidebarTodayBadge"></span>
         </a>
+        <a href="imputations.html" class="nav-link ${currentPage === 'imputations.html' ? 'active' : ''}">
+          <span class="icon">${ICONS.clock}</span>
+          Imputaciones
+        </a>
         <a href="projects.html" class="nav-link ${currentPage === 'projects.html' ? 'active' : ''}">
           <span class="icon">${ICONS.folder}</span>
           Proyectos
