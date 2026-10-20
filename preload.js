@@ -66,6 +66,28 @@ contextBridge.exposeInMainWorld('api', {
   gitCheckoutBranch: (payload) => ipcRenderer.invoke('git-checkout-branch', payload),
   gitPull: (payload) => ipcRenderer.invoke('git-pull', payload),
 
+  // Imputaciones y códigos
+  getImputationCodes: (projectId) => ipcRenderer.invoke('get-imputation-codes', projectId),
+  createImputationCode: (codeData) => ipcRenderer.invoke('create-imputation-code', codeData),
+  updateImputationCode: (id, codeData) => ipcRenderer.invoke('update-imputation-code', id, codeData),
+  deleteImputationCode: (id) => ipcRenderer.invoke('delete-imputation-code', id),
+  getImputations: (startDate, endDate) => ipcRenderer.invoke('get-imputations', startDate, endDate),
+  getMonthImputations: (year, month) => ipcRenderer.invoke('get-month-imputations', year, month),
+  saveImputation: (imputation) => ipcRenderer.invoke('save-imputation', imputation),
+  batchSaveDayImputations: (date, entries) => ipcRenderer.invoke('batch-save-day-imputations', date, entries),
+  deleteDayImputations: (date) => ipcRenderer.invoke('delete-day-imputations', date),
+  getCodeAllocations: (period, projectId) => ipcRenderer.invoke('get-code-allocations', period, projectId),
+  saveCodeAllocation: (allocation) => ipcRenderer.invoke('save-code-allocation', allocation),
+  batchSaveCodeAllocations: (period, allocations) => ipcRenderer.invoke('batch-save-code-allocations', period, allocations),
+  getHolidays: (year) => ipcRenderer.invoke('get-holidays', year),
+  setHoliday: (date, name) => ipcRenderer.invoke('set-holiday', date, name),
+  removeHoliday: (date) => ipcRenderer.invoke('remove-holiday', date),
+  getAnnualLeaveBalance: (year) => ipcRenderer.invoke('get-annual-leave-balance', year),
+  saveAnnualLeaveQuota: (quota) => ipcRenderer.invoke('save-annual-leave-quota', quota),
+  autoAdjustToCalendar: (payload) => ipcRenderer.invoke('auto-adjust-to-calendar', payload),
+  clearProjectMonthImputations: (projectId, period) => ipcRenderer.invoke('clear-project-month-imputations', projectId, period),
+  fillMonthRemainingGaps: (payload) => ipcRenderer.invoke('fill-month-remaining-gaps', payload),
+
   // Controles de ventana
   windowMinimize: () => ipcRenderer.send('window-minimize'),
   windowMaximize: () => ipcRenderer.send('window-maximize'),

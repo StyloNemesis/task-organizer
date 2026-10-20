@@ -1,0 +1,598 @@
+ <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imputaciones - Task Organizer</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('app-theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-controls">
+      <button class="titlebar-btn" onclick="window.api.windowMinimize()" title="Minimizar">&#8722;</button>
+      <button class="titlebar-btn" onclick="window.api.windowMaximize()" title="Maximizar">&#9633;</button>
+      <button class="titlebar-btn close" onclick="window.api.windowClose()" title="Cerrar">&#215;</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Sidebar se carga automáticamente desde sidebar.js -->
+
+    <main class="main-content imputations-main">
+      <!-- Header principal -->
+      <header class="content-header imputations-header">
+        <div class="header-title-group">
+          <h2>Imputaciones de Horas</h2>
+          <p class="header-subtitle">Gestiona tu calendario de jornada laboral, imputa a proyectos y reparte horas en tus códigos de imputación.</p>
+        </div>
+        <div class="header-actions">
+          <div class="imputations-nav-controls">
+            <button class="btn btn-secondary calendar-nav-btn" id="prevMonthBtn" title="Mes anterior">&#8249;</button>
+            <span id="currentMonthLabel" class="imputations-month-title"></span>
+            <button class="btn btn-secondary calendar-nav-btn" id="nextMonthBtn" title="Mes siguiente">&#8250;</button>
+          </div>
+          <button class="btn btn-secondary" id="todayBtn">Hoy</button>
+          <button class="btn btn-secondary" id="exportCsvBtn" title="Exportar imputaciones a CSV">Exportar CSV</button>
+          <button class="btn btn-secondary" id="copySummaryBtn" title="Copiar resumen del mes al portapapeles">Copiar Resumen</button>
+          <button class="btn btn-primary" id="imputeTodayBtn">+ Imputar Hoy</button>
+        </div>
+      </header>
+
+      <!-- Alert / Notificación flotante -->
+      <div id="imputationAlert" class="imputation-alert" style="display: none;"></div>
+
+      <!-- Contenedor con dos columnas: Árbol de proyectos a la izquierda + Calendario y Resumen a la derecha -->
+      <div class="content-body imputations-body">
+        
+        <!-- COLUMNA IZQUIERDA: Árbol de Proyectos y Códigos de Imputación -->
+        <aside class="imputations-tree-panel">
+          <div class="tree-panel-header">
+            <div class="tree-panel-title">
+              <span class="icon-tree-title" id="treeHeaderIcon"></span>
+              <h3>Proyectos y Códigos</h3>
+            </div>
+            <div class="tree-header-actions">
+              <button class="btn btn-sm btn-secondary" id="openFilterProjectsBtn" title="Filtrar qué proyectos mostrar en la lista">
+                <span id="filterIcon"></span>
+                <span id="activeFilterBadge" class="filter-count-badge" style="display:none;">0</span>
+              </button>
+              <button class="btn btn-sm btn-primary" id="newGlobalCodeBtn" title="Añadir nuevo código de imputación">+ Código</button>
+            </div>
+          </div>
+
+          <!-- Buscador en el árbol -->
+          <div class="tree-search-bar">
+            <input type="search" id="treeSearchInput" class="form-control" placeholder="Buscar proyectos o códigos..." autocomplete="off">
+          </div>
+
+          <!-- Indicador de filtro activo -->
+          <div id="filterStatusBanner" class="filter-status-banner" style="display: none;">
+            <span id="filterStatusText">Filtro de proyectos activo</span>
+            <button class="btn-link" id="resetProjectFilterBtn" title="Mostrar todos los proyectos">Ver todos</button>
+          </div>
+
+          <!-- Lista en árbol -->
+          <div class="tree-scroll-container" id="projectsTreeContainer">
+            <!-- Renderizado dinámicamente -->
+            <div class="tree-loading">Cargando proyectos y códigos...</div>
+          </div>
+
+          <div class="tree-panel-footer">
+            <div class="tree-stats-row">
+              <span id="treeStatsProjects">0 proyectos</span>
+              <span id="treeStatsCodes">0 códigos</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- COLUMNA DERECHA: Calendario de Imputaciones + Reparto de Códigos + Resumen y Gráficas -->
+        <section class="imputations-main-panel">
+          
+          <!-- CALENDARIO COMPACTO (VISIBLE DIRECTAMENTE AL ENTRAR) -->
+          <div class="imputation-calendar-wrapper">
+            <div class="calendar-sub-header">
+              <div class="schedule-rules-bar" id="scheduleRulesBar">
+                <!-- Dinámico según si es Julio/Agosto o el resto del año -->
+              </div>
+            </div>
+            <div class="calendar-weekdays" id="calendarWeekdaysHeader">
+              <!-- Dinámico según mes ordinario (L-J 9h, V 7h) o verano (L-V 7h) -->
+            </div>
+            <div class="imputation-calendar-grid" id="imputationCalendarGrid">
+              <!-- Las celdas se generarán dinámicamente -->
+            </div>
+          </div>
+
+          <!-- BOLSA ANUAL DE VACACIONES Y LIBRE DISPOSICIÓN -->
+          <div class="annual-leave-card" id="annualLeaveSection">
+            <div class="annual-leave-header">
+              <div class="annual-leave-title-group">
+                <span class="annual-leave-icon">🏖️</span>
+                <div>
+                  <h3 class="annual-leave-title">Bolsa Anual de Vacaciones y Libre Disposición (<span id="leaveCurrentYearLabel">2026</span>)</h3>
+                  <p class="annual-leave-subtitle">Control de saldos consumidos y restantes. Vacaciones consumibles hasta el 31 de marzo del año siguiente; Libre disposición hasta el 31 de diciembre.</p>
+                </div>
+              </div>
+              <div class="annual-leave-actions">
+                <button type="button" class="btn btn-secondary btn-sm" id="openLeaveQuotaModalBtn">⚙️ Configurar Cupos</button>
+              </div>
+            </div>
+
+            <div class="annual-leave-grid">
+              <!-- Tarjeta 1: Vacaciones Año Anterior -->
+              <div class="leave-stat-card" id="cardVacationPrevious">
+                <div class="leave-stat-top">
+                  <span class="leave-stat-tag">Año Anterior</span>
+                  <span class="leave-stat-expiry" id="expiryVacationPrevious">Caducan 31 Mar</span>
+                </div>
+                <div class="leave-stat-main">
+                  <div class="leave-stat-remaining" id="remainingVacationPrevious">0.0 <small>días</small></div>
+                  <div class="leave-stat-label">Restantes de <span id="totalVacationPrevious">0</span> días</div>
+                </div>
+                <div class="leave-progress-track">
+                  <div class="leave-progress-fill leave-progress-fill--previous" id="progressVacationPrevious" style="width: 0%;"></div>
+                </div>
+                <div class="leave-stat-bottom">
+                  <span>Consumidos: <strong id="consumedVacationPrevious">0.0</strong> d</span>
+                  <span class="code-ref-pill" id="codePillVacationPrevious" title="Código de imputación">[VAC-ANT]</span>
+                </div>
+              </div>
+
+              <!-- Tarjeta 2: Vacaciones Año Actual -->
+              <div class="leave-stat-card" id="cardVacationCurrent">
+                <div class="leave-stat-top">
+                  <span class="leave-stat-tag leave-stat-tag--primary">Año Actual</span>
+                  <span class="leave-stat-expiry" id="expiryVacationCurrent">Hasta 31 Mar próx. año</span>
+                </div>
+                <div class="leave-stat-main">
+                  <div class="leave-stat-remaining" id="remainingVacationCurrent">22.0 <small>días</small></div>
+                  <div class="leave-stat-label">Restantes de <span id="totalVacationCurrent">22</span> días</div>
+                </div>
+                <div class="leave-progress-track">
+                  <div class="leave-progress-fill leave-progress-fill--current" id="progressVacationCurrent" style="width: 0%;"></div>
+                </div>
+                <div class="leave-stat-bottom">
+                  <span>Consumidos: <strong id="consumedVacationCurrent">0.0</strong> d</span>
+                  <span class="code-ref-pill" id="codePillVacationCurrent" title="Código de imputación">[VAC-ACT]</span>
+                </div>
+              </div>
+
+              <!-- Tarjeta 3: Horas Libre Disposición -->
+              <div class="leave-stat-card" id="cardPersonalHours">
+                <div class="leave-stat-top">
+                  <span class="leave-stat-tag leave-stat-tag--purple">Libre Disposición</span>
+                  <span class="leave-stat-expiry" id="expiryPersonalHours">Caducan 31 Dic</span>
+                </div>
+                <div class="leave-stat-main">
+                  <div class="leave-stat-remaining leave-stat-remaining--purple" id="remainingPersonalHours">14.0 <small>horas</small></div>
+                  <div class="leave-stat-label">Restantes de <span id="totalPersonalHours">14</span> horas</div>
+                </div>
+                <div class="leave-progress-track">
+                  <div class="leave-progress-fill leave-progress-fill--purple" id="progressPersonalHours" style="width: 0%;"></div>
+                </div>
+                <div class="leave-stat-bottom">
+                  <span>Consumidas: <strong id="consumedPersonalHours">0.0</strong> h</span>
+                  <span class="code-ref-pill" id="codePillPersonalHours" title="Código de imputación">[LIBRE-DISP]</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN: REPARTO DE HORAS POR PROYECTO ENTRE CÓDIGOS DE IMPUTACIÓN -->
+          <div class="allocation-section-wrapper" id="allocationsSection">
+            <div class="section-card">
+              <div class="section-card-header">
+                <div>
+                  <h3 class="section-card-title">Reparto de Horas entre Códigos de Imputación</h3>
+                  <p class="section-card-subtitle">
+                    Indica las horas de tus códigos para autoajustarlas en los huecos laborables (L-V) del calendario, o consulta cómo se actualizan automáticamente al imputar a mano en cada día.
+                  </p>
+                </div>
+                <div class="section-card-actions">
+                  <span id="allocationsGlobalProgress" class="badge badge-info">Calculando...</span>
+                  <button class="btn btn-sm btn-primary" id="autoAdjustAllBtn" title="Autoajustar todas las horas asignadas en los huecos laborables (L-V) del mes">
+                    ⚡ Autoajustar Todo en Calendario
+                  </button>
+                  <button class="btn btn-sm btn-secondary" id="expandAllAllocationsBtn">Expandir todos</button>
+                </div>
+              </div>
+              <div class="section-card-body" id="allocationsContainer">
+                <!-- Se llena dinámicamente con los proyectos que tienen horas imputadas este mes -->
+              </div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN: RESUMEN MENSUAL Y GRÁFICAS -->
+          <div class="monthly-summary-wrapper" id="monthlySummarySection">
+            <div class="section-card">
+              <div class="section-card-header">
+                <div>
+                  <h3 class="section-card-title">Resumen Mensual y Estadísticas</h3>
+                  <p class="section-card-subtitle" id="monthlySummarySubtitle">Métricas y distribución visual del mes seleccionado.</p>
+                </div>
+              </div>
+
+              <div class="section-card-body">
+                <!-- Tarjetas de métricas -->
+                <div class="imputation-kpi-grid">
+                  <div class="kpi-card">
+                    <div class="kpi-label">Total Horas Mes</div>
+                    <div class="kpi-value" id="kpiTotalHours">0.0 <small>h</small></div>
+                    <div class="kpi-sub" id="kpiHoursBreakdown">0h reg · 0h extra</div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-label">Horas Ordinarias</div>
+                    <div class="kpi-value" id="kpiRegularHours">0.0 <small>h</small></div>
+                    <div class="kpi-sub" id="kpiTheoreticalComparison">de 0h esperadas</div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-label">Horas Extraordinarias</div>
+                    <div class="kpi-value kpi-value--overtime" id="kpiOvertimeHours">0.0 <small>h</small></div>
+                    <div class="kpi-sub" id="kpiOvertimeDays">en 0 días</div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-label">Días Imputados</div>
+                    <div class="kpi-value" id="kpiDaysWorked">0</div>
+                    <div class="kpi-sub" id="kpiDaysTheoretical">de 0 laborables</div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-label">Promedio Diario</div>
+                    <div class="kpi-value" id="kpiAvgHours">0.0 <small>h/d</small></div>
+                    <div class="kpi-sub">en días con imputación</div>
+                  </div>
+                  <div class="kpi-card">
+                    <div class="kpi-label">% Repartido en Códigos</div>
+                    <div class="kpi-value" id="kpiAllocatedPercent">0%</div>
+                    <div class="kpi-sub" id="kpiAllocatedHours">0.0h de 0.0h</div>
+                  </div>
+                </div>
+
+                <!-- Gráficas interactivas -->
+                <div class="charts-grid">
+                  <!-- Gráfica 1: Donut Horas por Proyecto -->
+                  <div class="chart-card">
+                    <div class="chart-card-header">
+                      <h4>Distribución por Proyectos</h4>
+                      <span class="chart-tag">Porcentaje y horas</span>
+                    </div>
+                    <div class="chart-container" id="projectDonutChartContainer">
+                      <!-- Renderizado SVG -->
+                    </div>
+                  </div>
+
+                  <!-- Gráfica 2: Jornada Diaria del Mes -->
+                  <div class="chart-card">
+                    <div class="chart-card-header">
+                      <h4>Evolución Diaria (Ordinarias vs Extra)</h4>
+                      <span class="chart-tag">Comparativa con límite diario</span>
+                    </div>
+                    <div class="chart-container" id="dailyBarChartContainer">
+                      <!-- Renderizado SVG -->
+                    </div>
+                  </div>
+
+                  <!-- Gráfica 3: Desglose por Códigos de Imputación -->
+                  <div class="chart-card chart-card--wide">
+                    <div class="chart-card-header">
+                      <h4>Horas por Códigos de Imputación</h4>
+                      <span class="chart-tag">Distribución detallada</span>
+                    </div>
+                    <div class="chart-container" id="codeHorizontalBarChartContainer">
+                      <!-- Renderizado SVG -->
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: Imputación Diaria -->
+  <div class="modal" id="dayImputationModal">
+    <div class="modal-content modal-content--day-imputation">
+      <div class="modal-header">
+        <div>
+          <h3 id="dayModalTitle">Imputar Horas</h3>
+          <p class="modal-subtitle" id="dayModalSubtitle"></p>
+        </div>
+        <button class="modal-close" id="closeDayModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Barra de capacidad del día -->
+        <div class="day-capacity-meter-wrapper">
+          <div class="day-capacity-header">
+            <span>Horas Imputadas en este día:</span>
+            <strong id="dayCapacitySummary">0.0 / 9.0h</strong>
+          </div>
+          <div class="day-capacity-bar-track">
+            <div class="day-capacity-bar-fill day-capacity-bar-fill--regular" id="dayCapacityFillRegular" style="width: 0%;"></div>
+            <div class="day-capacity-bar-fill day-capacity-bar-fill--overtime" id="dayCapacityFillOvertime" style="width: 0%;"></div>
+          </div>
+          <div class="day-capacity-status-text" id="dayCapacityStatusText">
+            Límite ordinario: 9h de lunes a jueves, 7h viernes.
+          </div>
+        </div>
+
+        <!-- Lista de proyectos imputados en el día -->
+        <div class="day-imputations-table-wrapper">
+          <div class="day-imputations-header-row">
+            <div class="col-proj">Proyecto</div>
+            <div class="col-code-select">Código</div>
+            <div class="col-hours">Horas</div>
+            <div class="col-type">Tipo</div>
+            <div class="col-notes">Notas / Observaciones</div>
+            <div class="col-action"></div>
+          </div>
+          <div id="dayImputationsList" class="day-imputations-list">
+            <!-- Filas dinámicas -->
+          </div>
+        </div>
+
+        <!-- Botón añadir fila de proyecto -->
+        <div class="day-imputations-toolbar">
+          <button type="button" class="btn btn-secondary btn-sm" id="addProjectRowBtn">+ Añadir Proyecto</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="addVacationRowBtn" title="Imputar jornada completa a Vacaciones">🏖️ Vacaciones</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="addPersonalHoursRowBtn" title="Imputar horas a Libre Disposición">⏱️ Libre Disposición</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="fillFullDayBtn" title="Completar la jornada ordinaria restante">Completar Jornada</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="addOvertimeRowBtn" title="Añadir una entrada explícita de horas extra">+ Horas Extra</button>
+        </div>
+
+        <!-- Alerta de validación en modal -->
+        <div id="dayModalAlert" class="alert-inline" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger-outline" id="deleteDayImputationsBtn">Borrar Imputaciones del Día</button>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" id="cancelDayModalBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="saveDayModalBtn">Guardar Imputaciones</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Crear / Editar Código de Imputación -->
+  <div class="modal" id="imputationCodeModal">
+    <div class="modal-content modal-content--code">
+      <form id="imputationCodeForm">
+        <div class="modal-header">
+          <h3 id="codeModalTitle">Nuevo Código de Imputación</h3>
+          <button type="button" class="modal-close" id="closeCodeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="codeModalId">
+          <div class="form-group">
+            <label for="codeModalProjectSelect">Proyecto *</label>
+            <select id="codeModalProjectSelect" class="form-control" required>
+              <!-- Opciones dinámicas de proyectos -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="codeModalCodeInput">Código de Imputación *</label>
+            <input type="text" id="codeModalCodeInput" class="form-control" placeholder="Ej: PRJ-DEV-01, MANTENIMIENTO, GESTION" required autocomplete="off">
+            <small class="form-help">Identificador único o clave de imputación.</small>
+          </div>
+          <div class="form-group">
+            <label for="codeModalDescInput">Descripción / Concepto</label>
+            <input type="text" id="codeModalDescInput" class="form-control" placeholder="Ej: Desarrollo de nuevas funcionalidades frontend" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label for="codeModalLeaveTypeSelect">Vincular a Bolsa Anual de Vacaciones</label>
+            <select id="codeModalLeaveTypeSelect" class="form-control">
+              <option value="">-- Ninguno (Código ordinario de proyecto) --</option>
+              <option value="vacation_current">🏖️ Vacaciones (Año actual - Caducan próx. 31 Mar)</option>
+              <option value="vacation_previous">⌛ Vacaciones (Año anterior - Caducan 31 Mar)</option>
+              <option value="personal_hours">⏱️ Horas Libre Disposición (Caducan 31 Dic)</option>
+            </select>
+            <small class="form-help">Si seleccionas una opción, las horas imputadas a este código restarán automáticamente de tu bolsa anual correspondiente.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelCodeModalBtn">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="saveCodeModalBtn">Guardar Código</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Configurar Filtro de Proyectos Visibles (Persistente) -->
+  <div class="modal" id="projectFilterModal">
+    <div class="modal-content modal-content--filter">
+      <div class="modal-header">
+        <div>
+          <h3>Filtrar Proyectos Visibles</h3>
+          <p class="modal-subtitle">Selecciona qué proyectos mostrar en el árbol y en el calendario de imputaciones. Tu selección se guardará automáticamente.</p>
+        </div>
+        <button type="button" class="modal-close" id="closeProjectFilterModalBtn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="filter-modal-toolbar">
+          <input type="search" id="filterModalSearchInput" class="form-control" placeholder="Filtrar por nombre...">
+          <div class="filter-modal-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="selectAllFilterProjectsBtn">Marcar todos</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="deselectAllFilterProjectsBtn">Desmarcar todos</button>
+          </div>
+        </div>
+        <div class="filter-projects-checklist" id="filterProjectsChecklist">
+          <!-- Checkboxes generados dinámicamente -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="resetToAllFilterProjectsBtn">Mostrar Todos</button>
+        <div style="margin-left: auto; display: flex; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" id="cancelProjectFilterModalBtn">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="saveProjectFilterBtn">Guardar Filtro</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Configurar Cupos de Vacaciones y Libre Disposición -->
+  <div class="modal" id="leaveQuotaModal">
+    <div class="modal-content modal-content--code">
+      <form id="leaveQuotaForm">
+        <div class="modal-header">
+          <h3>Configurar Cupos Anuales (<span id="quotaYearTitle">2026</span>)</h3>
+          <button type="button" class="modal-close" id="closeLeaveQuotaModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="quotaYearInput">
+          <div class="form-group">
+            <label for="quotaVacationCurrentInput">Días de Vacaciones Año Actual *</label>
+            <input type="number" step="0.5" min="0" max="60" id="quotaVacationCurrentInput" class="form-control" required>
+            <small class="form-help">Días del año en curso. Disfrutables hasta el 31 de marzo del año siguiente.</small>
+          </div>
+          <div class="form-group">
+            <label for="quotaVacationCurrentCodeSelect">Código de Imputación (Año Actual)</label>
+            <select id="quotaVacationCurrentCodeSelect" class="form-control">
+              <!-- Códigos dinámicos -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="quotaVacationPreviousInput">Días de Vacaciones del Año Anterior</label>
+            <input type="number" step="0.5" min="0" max="60" id="quotaVacationPreviousInput" class="form-control">
+            <small class="form-help">Días sobrantes del año anterior. Caducan el 31 de marzo de este año.</small>
+          </div>
+          <div class="form-group">
+            <label for="quotaVacationPreviousCodeSelect">Código de Imputación (Año Anterior)</label>
+            <select id="quotaVacationPreviousCodeSelect" class="form-control">
+              <!-- Códigos dinámicos -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="quotaPersonalHoursInput">Horas Anuales de Libre Disposición *</label>
+            <input type="number" step="0.5" min="0" max="100" id="quotaPersonalHoursInput" class="form-control" required>
+            <small class="form-help">Bolsa anual de horas de asuntos propios. Caducan el 31 de diciembre.</small>
+          </div>
+          <div class="form-group">
+            <label for="quotaPersonalHoursCodeSelect">Código de Imputación (Libre Disposición)</label>
+            <select id="quotaPersonalHoursCodeSelect" class="form-control">
+              <!-- Códigos dinámicos -->
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelLeaveQuotaModalBtn">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cupos</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Nombrar Día Festivo -->
+  <div class="modal" id="holidayModal">
+    <div class="modal-content modal-content--code">
+      <form id="holidayForm">
+        <div class="modal-header">
+          <h3 id="holidayModalTitle">Marcar Día Festivo</h3>
+          <button type="button" class="modal-close" id="closeHolidayModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="holidayDateInput">
+          <p id="holidayDateSubtitle" class="modal-subtitle mb-3" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1rem;"></p>
+          <div class="form-group">
+            <label for="holidayNameInput">Nombre o motivo del festivo *</label>
+            <input type="text" id="holidayNameInput" class="form-control" placeholder="Ej: Año Nuevo, Fiesta Nacional, Festivo Local" required autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-danger-outline" id="deleteHolidayBtn" style="display:none;">Quitar Festivo</button>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" id="cancelHolidayModalBtn">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="saveHolidayBtn">Guardar Festivo</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Custom Prompt Input Dialog -->
+  <div class="modal" id="customPromptModal">
+    <div class="modal-content modal-content--small" style="max-width: 440px;">
+      <form id="customPromptForm">
+        <div class="modal-header">
+          <h3 id="customPromptTitle">Indicar Horas</h3>
+          <button type="button" class="modal-close" id="closeCustomPromptBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="customPromptMessage" style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.45; white-space: pre-line;"></p>
+          <div class="form-group" style="margin-bottom: 0.5rem;">
+            <label id="customPromptInputLabel" for="customPromptInput" style="font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; display: block;">Número de horas:</label>
+            <input type="number" step="0.25" min="0" max="744" id="customPromptInput" class="form-control" style="font-size: 1.1rem; font-weight: 600; text-align: center; padding: 0.6rem;" required>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
+          <button type="button" class="btn btn-secondary" id="cancelCustomPromptBtn">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="confirmCustomPromptBtn">Aceptar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MENÚ CONTEXTUAL DE DÍA (CLICK DERECHO) -->
+  <div id="dayContextMenu" class="context-menu" style="display: none;">
+    <div class="context-menu-header" id="contextMenuDateHeader">Día</div>
+    <button type="button" class="context-menu-item" id="contextMenuToggleHoliday">
+      <span class="context-menu-icon" id="contextMenuHolidayIcon">🎉</span>
+      <span id="contextMenuHolidayText">Marcar como Festivo...</span>
+    </button>
+    <button type="button" class="context-menu-item" id="contextMenuVacation">
+      <span class="context-menu-icon">🏖️</span>
+      <span>Imputar día de Vacaciones</span>
+    </button>
+    <button type="button" class="context-menu-item" id="contextMenuPersonalHours">
+      <span class="context-menu-icon">⏱️</span>
+      <span>Imputar Libre Disposición</span>
+    </button>
+    <button type="button" class="context-menu-item" id="contextMenuFullDay">
+      <span class="context-menu-icon">⚡</span>
+      <span>Completar jornada ordinaria</span>
+    </button>
+    <div class="context-menu-divider"></div>
+    <button type="button" class="context-menu-item" id="contextMenuOpenModal">
+      <span class="context-menu-icon">✏️</span>
+      <span>Abrir detalle de imputaciones...</span>
+    </button>
+  </div>
+
+  <!-- MENÚ CONTEXTUAL DE CÓDIGO (CLICK DERECHO EN ÁRBOL / TABLA / CALENDARIO) -->
+  <div id="codeContextMenu" class="context-menu" style="display: none;">
+    <div class="context-menu-header" id="contextMenuCodeHeader">Código</div>
+    <button type="button" class="context-menu-item" id="contextMenuFillRemainingMonth">
+      <span class="context-menu-icon">⚡</span>
+      <span>Cargar todo el mes restante</span>
+    </button>
+    <button type="button" class="context-menu-item" id="contextMenuFillFromToday">
+      <span class="context-menu-icon">📅</span>
+      <span id="contextMenuFillFromTodayText">Cargar desde hoy hasta fin de mes</span>
+    </button>
+    <div class="context-menu-divider"></div>
+    <button type="button" class="context-menu-item" id="contextMenuEditCode">
+      <span class="context-menu-icon">✏️</span>
+      <span>Editar código...</span>
+    </button>
+    <button type="button" class="context-menu-item context-menu-item--danger" id="contextMenuDeleteCode">
+      <span class="context-menu-icon">🗑️</span>
+      <span>Eliminar código</span>
+    </button>
+  </div>
+
+  <script src="js/icons.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/sidebar.js"></script>
+  <script src="js/external-links.js"></script>
+  <script src="js/modal-resize.js"></script>
+  <script src="js/imputations.js"></script>
+</body>
+</html>
